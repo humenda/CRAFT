@@ -1,0 +1,9 @@
+[package]
+name = "wikipedia2plain"
+version = "0.1.0"
+authors = ["Sebastian Humenda <shumenda@gmx.de>"]
+
+[dependencies]
+bzip2 = "*"
+xml-rs = "0.3"
+pandoc = "*"
