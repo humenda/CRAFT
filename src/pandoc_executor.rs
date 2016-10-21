@@ -123,7 +123,6 @@ impl<'a> MediawikiPreprocessor<'a> {
                 self.parsed_data.push(otherchar);
                 self.tag_start_found = false;
             } else { // is a <b... tag, save text to examine when > found
-                println!("here: {}: {}", self.parsed_data, self.tmp_storage);
                 self.tmp_storage.push(otherchar);
             }
         } else { // no tag start found, add vanilla
