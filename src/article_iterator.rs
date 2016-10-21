@@ -1,9 +1,6 @@
-extern crate bzip2;
-extern crate xml;
-
-use self::bzip2::read::BzDecoder;
+use bzip2::read::BzDecoder;
 use std::fs::File;
-use self::xml::reader::{EventReader, XmlEvent};
+use xml::reader::{EventReader, XmlEvent};
 
 pub struct ArticleIterator {
     event_reader : EventReader<BzDecoder<File>>

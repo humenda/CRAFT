@@ -3,7 +3,18 @@ name = "wikipedia2plain"
 version = "0.1.0"
 authors = ["Sebastian Humenda <shumenda@gmx.de>"]
 
+[lib]
+name = "wikipedia2plain"
+path = "src/lib.rs"
+
+[[bin]]
+name = "wp2plain"
+path = "src/main.rs"
+
 [dependencies]
+tempdir = "*"
 bzip2 = "*"
 xml-rs = "0.3"
-pandoc = "*"
+#pandoc = { git = "https://github.com/oli-obk/rust-pandoc/" }
+pandoc = { git = "file:///home/streicher/rust-pandoc" }
+pandoc_ast = "*"
