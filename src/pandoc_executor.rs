@@ -1,9 +1,12 @@
 use pandoc;
+use pandoc_ast;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path;
 use tempdir::TempDir;
 use std::fs::OpenOptions;
+
+use pandoc_filter;
 
 // ToDo: remove
 pub fn write_error(input: &str) {
@@ -136,19 +139,6 @@ pub struct PandocFilterer {
     tmpdir: TempDir
 }
 
-//fn clear_pandoc_ast(pandoc: &mut Pandoc) {
-//    pandoc.add_filter(|json| pandoc_ast::filter(json, |mut pandoc| {
-//        for block in &mut pandoc.1 {
-//            use pandoc_ast::Block::*;
-//            *block = match *block {
-//                CodeBlock((_, ref kinds, _), _) if kinds.iter().next() == Some("graphviz") => {
-//                    // do something to change a graphviz block into an image
-//                }
-//            }
-//        }
-//        pandoc
-//    }));
-//}
 
 impl PandocFilterer {
     pub fn new() -> PandocFilterer {
@@ -177,7 +167,8 @@ impl PandocFilterer {
         pandoc.add_input(&self.tmp_create_file(&input));
         pandoc.set_output("test.plain");
         pandoc.set_input_format(pandoc::InputFormat::MediaWiki);
-        //clear_pandoc_ast(pandoc);
+        //pandoc.add_filter(|json: String| pandoc_ast::filter(json,
+        //pandoc_filter::stringify_text));
         match pandoc.execute() {
             Ok(_) => (),
             Err(e) => {
