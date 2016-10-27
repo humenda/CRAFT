@@ -81,10 +81,12 @@ fn all_chars_alphabetical(word: &String) -> bool {
     // make sure that a word not only consists of dashes:
     let mut found_one_alphabetical_character = false;
     for character in word.chars() {
-        if character.is_alphabetic() || is_apostrophe(character) {
+        if character.is_alphabetic() {
             if !found_one_alphabetical_character {
                 found_one_alphabetical_character = true;
             }
+        } else if is_apostrophe(character) {
+            // works in a word, but do not set found_one_alphabetical_character :)
         } else if character != '-' { //not alphabetical and no dash
             return false; // early return, non-alphabetical character
         }

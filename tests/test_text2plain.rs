@@ -53,3 +53,8 @@ fn test_semicolons_removed() {
     assert_eq!(art2words("ab; cd"), "ab cd");
     assert_eq!(art2words("ab;cd"), "");
 }
+
+#[test]
+fn test_words_with_only_punctuation_etc_no_alphabetical_characters_removed() {
+    assert_eq!(art2words("jo (''.) moo"), "jo moo");
+}
