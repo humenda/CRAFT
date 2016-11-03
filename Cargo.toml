@@ -18,3 +18,4 @@ xml-rs = "0.3"
 #pandoc = { git = "https://github.com/oli-obk/rust-pandoc/" }
 pandoc = { git = "file:///home/streicher/rust-pandoc" }
 pandoc_ast = "*"
+json = "*"

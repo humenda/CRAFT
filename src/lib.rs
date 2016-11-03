@@ -1,4 +1,5 @@
 extern crate bzip2;
+extern crate json;
 extern crate pandoc;
 extern crate pandoc_ast;
 extern crate tempdir;

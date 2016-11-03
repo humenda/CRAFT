@@ -167,7 +167,7 @@ impl PandocFilterer {
         pandoc.add_input(&self.tmp_create_file(&input));
         pandoc.set_output("test.plain");
         pandoc.set_input_format(pandoc::InputFormat::MediaWiki);
-        //pandoc.add_filter(|json: String| pandoc_ast::filter(json,
+        pandoc.add_filter(pandoc_filter::stringify_text);
         //pandoc_filter::stringify_text));
         match pandoc.execute() {
             Ok(_) => (),
