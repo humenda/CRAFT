@@ -16,6 +16,5 @@ tempdir = "*"
 bzip2 = "*"
 xml-rs = "0.3"
 #pandoc = { git = "https://github.com/oli-obk/rust-pandoc/" }
-pandoc = { git = "file:///home/streicher/rust-pandoc" }
-pandoc_ast = "*"
+pandoc = { git = "file:///home/streicher/daten/quellen/foreign/rust-pandoc" }
 json = "*"

@@ -1,5 +1,4 @@
 use pandoc;
-use pandoc_ast;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path;
