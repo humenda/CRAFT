@@ -12,7 +12,7 @@ fn handle_pandoc_entities(output: &mut String, entity: &mut object::Object) {
     // every pandoc object consists of a "t" (type) and a content "c"; match on the type:
     match entity.get("t").unwrap_or_else(|| panic!("broken json")).to_string().as_ref() {
         // add a space, if last character wasn't already a space
-        "Space" | "SoftBreak" | "LineBreak" => match output.chars().rev().next() {
+        "Space" | "LineBreak" | "SoftBreak" => match output.chars().rev().next() {
             Some(x) if !x.is_whitespace() => output.push(' '),
             _ => ()
         },
@@ -35,7 +35,7 @@ fn handle_pandoc_entities(output: &mut String, entity: &mut object::Object) {
         },
 
         // these are arrays with two items, where the first are attributes
-        t @ "OrderedList" | t @ "Div" | t @ "Quoted" | t @ "Span" =>
+        t @ "OrderedList" | t @ "Div" | t @ "Span" =>
             if let Some(array) = entity.get_mut("c") {
                 match *array {
                     JsonValue::Array(ref mut x) if x.len() == 2 =>
@@ -56,8 +56,8 @@ fn handle_pandoc_entities(output: &mut String, entity: &mut object::Object) {
 
         // types to ignore
         "CodeBlock" | "RawBlock" | "HorizontalRule" | "Table" | "Superscript" |
-                "subscript" | "Cite" | "Code" | "Math" | "RawInline" => (),
-        _ => panic!("Unknown type identifier found: {:?}", entity),
+                "Subscript" | "Cite" | "Code" | "Math" | "RawInline" | "Null" => (),
+        _ => panic!("Unknown type pandoc AST identifier found: {:?}", entity),
     }
 }
 
@@ -70,44 +70,32 @@ fn recurse_json_tree(output: &mut String, jsval: &mut JsonValue) {
         &mut JsonValue::Number(data) => output.push_str(data.to_string().as_str()),
         &mut JsonValue::Boolean(data) => output.push_str(data.to_string().as_str()),
         &mut JsonValue::Object(ref mut entity) => handle_pandoc_entities(output, entity),
-        &mut JsonValue::Array(ref mut values) => for mut val in values.iter_mut() {
-            recurse_json_tree(output, &mut val);
-        },
+        &mut JsonValue::Array(ref mut values) => {
+            let lastindex = values.len() - 1;
+            for (i, mut val) in values.iter_mut().enumerate() {
+                recurse_json_tree(output, &mut val);
+                // between the items of an array are sometimes no spaces (e.g. in lists), so check and
+                // insert a space
+                match output.chars().rev().next() {
+                    Some(x) if !x.is_whitespace() && i < lastindex =>
+                        output.push(' '),
+                    _ => ()
+                };
+            };
+        }
     }
 }
 
 pub fn stringify_text(pandoc_dump: String) -> String {
-    let mut ast = json::parse(&pandoc_dump).unwrap();
+    let ast = json::parse(&pandoc_dump).unwrap();
     let mut output = String::new();
-    recurse_json_tree(&mut output, &mut ast);
+    match ast {
+        JsonValue::Array(mut values) => if values.len() == 2 {
+            recurse_json_tree(&mut output, &mut values[1]);
+        },
+        _ => panic!("expected JSON document with an Array at top level object \
+                    and two entries: unmeta and the contents of the parsed document.")
+    };
     output
 }
-//    for block in &mut document_ast.1 {
-//        *block = match *block {
-//            Plain(chunks) => Null,
-////            Para(chunks) => Null,
-////            CodeBlock(Attr, String) => Null,
-////            RawBlock(Format, String) => Null,
-////            // Vec<Block>:
-////            BlockQuote(blocks) => Null,
-////            // Ordered list (attributes and a list of items, each a list of blocks)
-////            //OrderedList(ListAttributes, Vec<Vec<Block>>) => Null,
-////            // Bullet list (list of items, each a list of blocks)
-////            //BulletList(Vec<Vec<Block>>) => Null,
-////            // Definition list Each list item is a pair consisting of a term (a list of inlines)
-////            // and one or more definitions (each a list of blocks)
-////            //DefinitionList(Vec<(Vec<Inline>, Vec<Vec<Block>>)>) => Null,
-////            // Header - level (integer) and text (inlines)
-////            Header(_, _, chunks) => Null,
-////            HorizontalRule => Null,
-////            /// Table, with caption, column alignments (required), relative column widths (0 = default),
-////            // column headers (each a list of blocks), and rows (each a list of lists of blocks)
-////            Table(_, _, _, _, _) => Null,
-////            // Generic block container with attributes
-////            Div(_, blocks) => Null,
-////            // Nothing
-////            Null => Null,
-//            _ => Null
-//        }
-//    }
 

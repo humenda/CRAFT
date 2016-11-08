@@ -1,0 +1,9 @@
+The file test_pandoc_filter.rs has many tests which test the traversal of the
+JSON tree emitted by pandoc. These JSON representation of documents have been
+take from Pandoc 1.71.* and might vary. If there are incompatibilities, the
+script mktest.py can be used to create new JSON dumps. Just run it and try it
+out - then it's rather self-explanatory.
+
+The right-hand side of the `assert_eq!` needs to be adjusted, it's the output of
+the format "plain", but our outputformat is plainer than plain ;).
+
