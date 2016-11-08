@@ -71,7 +71,10 @@ fn recurse_json_tree(output: &mut String, jsval: &mut JsonValue) {
         &mut JsonValue::Boolean(data) => output.push_str(data.to_string().as_str()),
         &mut JsonValue::Object(ref mut entity) => handle_pandoc_entities(output, entity),
         &mut JsonValue::Array(ref mut values) => {
-            let lastindex = values.len() - 1;
+            let lastindex = match values.len() {
+                x if x > 0 => x - 1,
+                _ => 0
+            };
             for (i, mut val) in values.iter_mut().enumerate() {
                 recurse_json_tree(output, &mut val);
                 // between the items of an array are sometimes no spaces (e.g. in lists), so check and
