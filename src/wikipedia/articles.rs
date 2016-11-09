@@ -31,10 +31,13 @@ impl Iterator for ArticleParser {
                 },
                 XmlEvent::EndElement { name } => {
                     if name.local_name == "text" && is_text {
-                        break;
+                        // check whether article text is only a redirect
+                        if !text.starts_with("#REDIRECT") {
+                            break;
+                        }
                     }
-                }
-                XmlEvent::Characters(content) => { 
+                },
+                XmlEvent::Characters(content) => {
                     if is_text {
                         text.push_str(&content);
                     }
