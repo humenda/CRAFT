@@ -11,7 +11,7 @@ fn main() {
     let mut errorneous_articles = 0;
     let pandoc = pandoc_executor::PandocFilterer::new();
     let mut result_file = File::create("text8").unwrap();
-    for article in article_iterator::ArticleIterator::new("wikipedia.dump.bz2") {
+    for article in articles::ArticleParser::new("wikipedia.dump.bz2") {
         if article.starts_with("#REDIRECT") {
             continue;
         }

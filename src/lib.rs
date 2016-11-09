@@ -5,7 +5,7 @@ extern crate tempdir;
 extern crate xml;
 
 
-pub mod article_iterator;
+pub mod articles;
 pub mod pandoc_executor;
 pub mod pandoc_filter;
 pub mod text2plain;

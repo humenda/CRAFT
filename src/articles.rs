@@ -2,19 +2,19 @@ use bzip2::read::BzDecoder;
 use std::fs::File;
 use xml::reader::{EventReader, XmlEvent};
 
-pub struct ArticleIterator {
+pub struct ArticleParser {
     event_reader : EventReader<BzDecoder<File>>
 }
 
-impl ArticleIterator {
-    pub fn new(filename: &str) -> ArticleIterator {
+impl ArticleParser {
+    pub fn new(filename: &str) -> ArticleParser {
         let compressed = File::open(filename).unwrap();
         let er = EventReader::new(BzDecoder::new(compressed));
-        ArticleIterator { event_reader: er }
+        ArticleParser { event_reader: er }
     }
 }
 
-impl Iterator for ArticleIterator {
+impl Iterator for ArticleParser {
     type Item = String;
 
     fn next(&mut self) -> Option<String> {

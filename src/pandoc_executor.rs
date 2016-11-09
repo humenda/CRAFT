@@ -160,13 +160,13 @@ impl PandocFilterer {
     }
 
     pub fn call_pandoc(&self, input: &str) -> String {
-        //let input = preprocess(input);
+        let mut preproc = MediawikiPreprocessor::new(input);
+        let input = preproc.preprocess().unwrap();
         let mut pandoc = pandoc::Pandoc::new();
-        pandoc.set_output_format(pandoc::OutputFormat::Plain);
+        pandoc.set_output_format(pandoc::OutputFormat::Json);
         pandoc.add_input(&self.tmp_create_file(&input));
         pandoc.set_output("test.plain");
         pandoc.set_input_format(pandoc::InputFormat::MediaWiki);
-        pandoc.add_filter(pandoc_filter::stringify_text);
         match pandoc.execute() {
             Ok(_) => (),
             Err(e) => {
@@ -174,7 +174,8 @@ impl PandocFilterer {
                 write_error(&text);
             }
         };
-        self.tmp_get_output("test.plain")
+        let plain_text = self.tmp_get_output("test.plain");
+        pandoc_filter::stringify_text(plain_text)
     }
 }
 
