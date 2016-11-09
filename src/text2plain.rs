@@ -1,50 +1,4 @@
-// ToDo: use &str for word iterator to prevent creation of strings, but how?
-use std::str::Chars;
 
-struct WordIterator<'a> {
-    characters: Chars<'a>,
-    last_parsed_word: String,
-}
-
-impl<'a> WordIterator<'a> {
-    pub fn new(input: &'a String) -> WordIterator<'a> {
-        WordIterator { characters: input.chars(),
-                        last_parsed_word: String::new() }
-    }
-
-    fn fetch_next_word(&mut self) -> Option<String> {
-        while let Some(cur) = self.characters.next() {
-            if cur.is_whitespace() {
-                if self.last_parsed_word.len() > 0 {
-                    let ret = self.last_parsed_word.clone();
-                    self.last_parsed_word.clear();
-                    return Some(ret);
-                }
-                // no else, ignore subsequent white space
-            } else {
-                self.last_parsed_word.push(cur);
-            }
-        }
-        if self.last_parsed_word.len() > 0 {
-            let ret = Some(self.last_parsed_word.clone());
-            self.last_parsed_word.clear();
-            return ret;
-        }
-        None
-    }
-}
-
-impl<'a> Iterator for WordIterator<'a> {
-    type Item = String;
-
-    fn next(&mut self) -> Option<String> {
-        self.fetch_next_word()
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// strip punctuation and enclosing  characters
-////////////////////////////////////////////////////////////////////////////////
 
 // Test whether given character is a enclosing character like quotes or
 // parenthesis.
@@ -63,7 +17,7 @@ fn is_punctuation(c: char) -> bool {
     }
 }
 
-// test wehther character is some kind of apostrophe (and similar)
+// test whether character is some kind of apostrophe (and similar)
 fn is_apostrophe(c: char) -> bool {
     match c {
         '\'' | '`' | '‚' | '‘' | '’' => true,
@@ -124,8 +78,8 @@ fn remove_punctuation(input: &mut String) {
 pub fn article2words(input: String) -> String {
     let mut words = String::new();
 
-    for word in WordIterator::new(&input) {
-        let mut word = word.clone(); // ToDo: implement trait to support either iter_mut or even better into_iter vor by-value reference
+    for word in input.split_whitespace() {
+        let mut word = String::from(word);
         remove_enclosing_characters(&mut word);
         remove_punctuation(&mut word);
         if all_chars_alphabetical(&word) {
