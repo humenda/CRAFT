@@ -8,7 +8,7 @@ use std::fs::OpenOptions;
 use pandoc_filter;
 
 // ToDo: remove
-pub fn write_error(input: &str) {
+fn write_error(input: &str) {
     let mut file = OpenOptions::new().create(true).append(true).open("error.log").unwrap();
     file.write(format!("=-=-=-=-=-=-=-=-=-=-=-=-=-=\nError: {}\n",
                 input).as_bytes()).unwrap();
@@ -16,16 +16,22 @@ pub fn write_error(input: &str) {
 
 #[derive(Default)]
 pub struct MediawikiPreprocessor<'a> {
+    /// indicate whether a table has been encountered; use to ignore everything inside
     in_table: bool,
+    /// indicatation of an opened HTML tag
     tag_start_found: bool,
+    /// store previous character
     prevchar: char,
+    /// original mediawiki input
     original_data: &'a str,
+    /// parsed output data with some things modified / removed
     parsed_data: String,
+    /// temporary storage, e.g. when parsing a tag
     tmp_storage: String
 }
 
-// Todo: enforce mutability
 impl<'a> MediawikiPreprocessor<'a> {
+    /// obtain a new instance of a MediawikiPreprocessor with a given mediawiki input string
     pub fn new(input: &'a str) -> MediawikiPreprocessor<'a> {
         MediawikiPreprocessor { in_table: false, tag_start_found: false,
             original_data: input,
@@ -33,6 +39,7 @@ impl<'a> MediawikiPreprocessor<'a> {
         }
     }
 
+    // test whether character is one of the table identifiers within mediawiki
     fn is_table_char(x: char) -> bool {
         x == '|' || x == '{' || x == '}'
     }
@@ -40,10 +47,14 @@ impl<'a> MediawikiPreprocessor<'a> {
     // ToDo: proper error handling
     pub fn preprocess(&'a mut self) -> Result<&'a str, String> {
         for character in self.original_data.chars() {
+            // ignore characters within a table
             if self.in_table && !MediawikiPreprocessor::is_table_char(character) {
                 self.prevchar = character;
                 continue; // skip characters in tables
             }
+
+            // try to identify tables and HTML tags by looking at each character (and the previous
+            // one)
             match character {
                 tb if MediawikiPreprocessor::is_table_char(tb) => self.handle_table_character(tb),
                 lt if lt == '<' => self.tag_start_found = true,
@@ -65,6 +76,8 @@ impl<'a> MediawikiPreprocessor<'a> {
             };
             self.prevchar = character;
         }
+
+        // if tag_start_found still set, unclosed HTML tag
         if self.tag_start_found {
             Err(format!("Unclosed tag, text after is: {}", self.tmp_storage))
         } else {
@@ -73,6 +86,9 @@ impl<'a> MediawikiPreprocessor<'a> {
     }
 
     fn handle_table_character(&mut self, table_char: char) {
+        // This function figures out whether the encountered "table character" was the second in a
+        // row, and therefore opens a table. In more straight words, if | is followed by { for { by
+        // |, this opens (or other way around, closes) a table.
         // table is on newline, if character _before_ previous character is \n
         let table_on_newline = |x: &String| match x.chars().rev().skip(1).next() {
             Some(x) if x == '\n' => true,
@@ -111,6 +127,11 @@ impl<'a> MediawikiPreprocessor<'a> {
         }
     }
 
+            // normal characters:
+            // 1. within table: discarded
+            // 2. within html tag: check whether first recognized character is b, otherwise tag
+            //    parsing abborted (only interested in <blockquote...>
+            // 3. add it to parsed text
     fn handle_other_character(&mut self, otherchar: char) {
         // characters in tables are discarded, so check whether in table
         if self.in_table { // characters in tables are discarded
@@ -133,7 +154,7 @@ impl<'a> MediawikiPreprocessor<'a> {
     }
 }
 
-// should be one per thread
+
 pub struct PandocFilterer {
     tmpdir: TempDir
 }
