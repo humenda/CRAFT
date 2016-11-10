@@ -1,7 +1,7 @@
 #[cfg(test)]
 extern crate wikipedia2plain;
 
-use wikipedia2plain::pandoc_executor::*;
+use wikipedia2plain::wikipedia::*;
 
 fn preproc(input: &str) -> String {
     let mut preproc = MediawikiPreprocessor::new(input);

@@ -7,6 +7,5 @@ extern crate xml;
 
 pub mod wikipedia;
 pub mod pandoc_executor;
-pub mod pandoc_filter;
 pub mod text2plain;
 

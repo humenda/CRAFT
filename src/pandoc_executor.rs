@@ -5,8 +5,6 @@ use std::path;
 use tempdir::TempDir;
 use std::fs::OpenOptions;
 
-use pandoc_filter;
-
 // ToDo: remove
 fn write_error(input: &str) {
     let mut file = OpenOptions::new().create(true).append(true).open("error.log").unwrap();
@@ -53,8 +51,7 @@ impl PandocFilterer {
                 write_error(&text);
             }
         };
-        let plain_text = self.tmp_get_output("test.plain");
-        pandoc_filter::stringify_text(plain_text)
+        self.tmp_get_output("test.plain")
     }
 }
 

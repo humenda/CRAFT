@@ -1,3 +1,4 @@
+extern crate getopts;
 extern crate wikipedia2plain;
 
 use std::fs::File;
@@ -19,8 +20,10 @@ fn main() {
             errorneous_articles += 1;
             continue; // skip article
         }
-        let article = pandoc.call_pandoc(&article);
-        let stripped_words = text2plain::article2words(article);
+        let json_ast = pandoc.call_pandoc(&article);
+        let article = text2plain::stringify_text(json_ast);
+
+        let stripped_words = text2plain::text2words(article);
         result_file.write_all(stripped_words.as_bytes()).unwrap();
         result_file.write_all(b"\n").unwrap();
         

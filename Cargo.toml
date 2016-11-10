@@ -12,9 +12,12 @@ name = "wp2plain"
 path = "src/main.rs"
 
 [dependencies]
-tempdir = "*"
+# for wikipedia
 bzip2 = "*"
 xml-rs = "0.3"
-#pandoc = { git = "https://github.com/oli-obk/rust-pandoc/" }
+tempdir = "*"
+# for pandoc
 pandoc = { git = "file:///home/streicher/daten/quellen/foreign/rust-pandoc" }
 json = "*"
+# for the main program
+getopts = "0.2"
