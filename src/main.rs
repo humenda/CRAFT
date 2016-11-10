@@ -13,7 +13,7 @@ fn main() {
     let mut result_file = File::create("text8").unwrap();
     for article in wikipedia::ArticleParser::new("wikipedia.dump.bz2") {
         articles_read += 1;
-        let mut preproc = pandoc_executor::MediawikiPreprocessor::new(&article);
+        let mut preproc = wikipedia::MediawikiPreprocessor::new(&article);
         let result = preproc.preprocess();
         if result.is_err() {
             errorneous_articles += 1;
