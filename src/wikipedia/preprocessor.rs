@@ -29,7 +29,7 @@ impl<'a> MediawikiPreprocessor<'a> {
     }
 
     // ToDo: proper error handling
-    pub fn preprocess(&'a mut self) -> Result<&'a str, String> {
+    pub fn preprocess(&'a mut self) -> Result<String, String> {
         for character in self.original_data.chars() {
             // ignore characters within a table
             if self.in_table && !MediawikiPreprocessor::is_table_char(character) {
@@ -65,7 +65,8 @@ impl<'a> MediawikiPreprocessor<'a> {
         if self.tag_start_found {
             Err(format!("Unclosed tag, text after is: {}", self.tmp_storage))
         } else {
-            Ok(&self.parsed_data)
+            // ToDo: Hendrik, wie ohne clone?
+            Ok(self.parsed_data.clone())
         }
     }
 

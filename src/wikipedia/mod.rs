@@ -1,5 +1,27 @@
 mod articles;
 mod preprocessor;
 
+use std::path::Path;
+
 pub use self::articles::*;
 pub use self::preprocessor::*;
+
+use super::input_source;
+
+/// For documentation, please see the type Articles and MediawikiPreprocessor
+pub struct Wikipedia;
+
+impl input_source::InputSource for Wikipedia {
+    fn get_input(dst: &Path) -> Box<Iterator<Item=String>> {
+        Box::new(parser_from_file(dst))
+    }
+
+    fn is_preprocessing_required() -> bool {
+        true
+    }
+
+    fn preprocess(input: &str) -> Result<String, String> {
+        let mut preproc = MediawikiPreprocessor::new(input);
+        preproc.preprocess()
+    }
+}

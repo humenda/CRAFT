@@ -1,20 +1,22 @@
 use bzip2::read::BzDecoder;
+use std::io::Read;
+
 use std::fs::File;
+use std::path::Path;
 use xml::reader::{EventReader, XmlEvent};
 
-pub struct ArticleParser {
-    event_reader : EventReader<BzDecoder<File>>
+pub struct ArticleParser<B: Read> {
+    event_reader: EventReader<B>
 }
 
-impl ArticleParser {
-    pub fn new(filename: &str) -> ArticleParser {
-        let compressed = File::open(filename).unwrap();
-        let er = EventReader::new(BzDecoder::new(compressed));
+impl<B: Read> ArticleParser<B> {
+    pub fn new(input_reader: B) -> ArticleParser<B> {
+        let er = EventReader::new(input_reader);
         ArticleParser { event_reader: er }
     }
 }
 
-impl Iterator for ArticleParser {
+impl<B: Read> Iterator for ArticleParser<B> {
     type Item = String;
 
     fn next(&mut self) -> Option<String> {
@@ -56,5 +58,10 @@ impl Iterator for ArticleParser {
             None
         }
     }
+}
+
+pub fn parser_from_file(filename: &Path) -> ArticleParser<BzDecoder<File>> {
+    let compressed = File::open(filename.to_str().unwrap()).unwrap();
+    ArticleParser::new(BzDecoder::new(compressed))
 }
 
