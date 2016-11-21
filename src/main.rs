@@ -12,6 +12,7 @@ use std::io::Write;
 use std::path::Path;
 
 use wikipedia2plain::*;
+use wikipedia2plain::gutenberg::Gutenberg;
 use wikipedia2plain::input_source::InputSource;
 use wikipedia2plain::wikipedia::Wikipedia;
 
@@ -70,6 +71,13 @@ fn main() {
     let input_path = Path::new(&input_path);
     for article in Wikipedia::get_input(&input_path) {
         articles_read += 1;
+        let article = match article {
+            Ok(a) => a,
+            Err(_) => {
+                errorneous_articles += 1;
+                continue;
+            }
+        };
         let article = match Wikipedia::preprocess(&article) {
             // ToDo: put that into some kind of log file
             Err(_) => {

@@ -1,3 +1,5 @@
+use super::super::input_source::{TransformationError, Result};
+
 #[derive(Default)]
 pub struct MediawikiPreprocessor<'a> {
     /// indicate whether a table has been encountered; use to ignore everything inside
@@ -29,7 +31,7 @@ impl<'a> MediawikiPreprocessor<'a> {
     }
 
     // ToDo: proper error handling
-    pub fn preprocess(&'a mut self) -> Result<String, String> {
+    pub fn preprocess(&'a mut self) -> Result<String> {
         for character in self.original_data.chars() {
             // ignore characters within a table
             if self.in_table && !MediawikiPreprocessor::is_table_char(character) {
@@ -63,7 +65,9 @@ impl<'a> MediawikiPreprocessor<'a> {
 
         // if tag_start_found still set, unclosed HTML tag
         if self.tag_start_found {
-            Err(format!("Unclosed tag, text after is: {}", self.tmp_storage))
+            Err(TransformationError::ErrorneousStructure(
+                    format!("text after opening <: {}",
+                    self.tmp_storage), None))
         } else {
             // ToDo: Hendrik, wie ohne clone?
             Ok(self.parsed_data.clone())
@@ -112,11 +116,11 @@ impl<'a> MediawikiPreprocessor<'a> {
         }
     }
 
-            // normal characters:
-            // 1. within table: discarded
-            // 2. within html tag: check whether first recognized character is b, otherwise tag
-            //    parsing abborted (only interested in <blockquote...>
-            // 3. add it to parsed text
+    // normal characters:
+    // 1. within table: discarded
+    // 2. within html tag: check whether first recognized character is b, otherwise tag
+    //    parsing abborted (only interested in <blockquote...>
+    // 3. add it to parsed text
     fn handle_other_character(&mut self, otherchar: char) {
         // characters in tables are discarded, so check whether in table
         if self.in_table { // characters in tables are discarded

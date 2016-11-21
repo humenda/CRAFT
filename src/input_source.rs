@@ -1,4 +1,49 @@
+use std::error::Error;
+use std::io;
 use std::path::Path;
+
+pub type Result<T> = ::std::result::Result<T, TransformationError>;
+
+#[derive(Debug)]
+pub enum TransformationError {
+    IoError(io::Error),
+    /// STructural errors; may contain a message and an otpional path
+    ErrorneousStructure(String, Option<String>)
+}
+
+impl ::std::fmt::Display for TransformationError {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        match *self {
+            TransformationError::IoError(ref e) => e.fmt(f),
+            TransformationError::ErrorneousStructure(ref msg, ref path) => write!(f,
+                          "{}{}", msg, path.clone().unwrap_or_else(String::new)),
+        }
+    }
+}
+
+impl Error for TransformationError {
+    fn description(&self) -> &str {
+        match *self {
+            TransformationError::ErrorneousStructure(_, _) => "invalid structure",
+            TransformationError::IoError(ref err) => err.description(),
+        }
+    }
+
+    fn cause(&self) -> Option<&Error> {
+        match *self {
+            TransformationError::IoError(ref err) => err.cause(),
+            _ => None,
+        }
+    }
+}
+
+/// allow seamless coercion from::Error 
+impl From<::std::io::Error> for TransformationError {
+    fn from(err: ::std::io::Error) -> TransformationError {
+        TransformationError::IoError(err)
+    }
+}
+
 
 /// Bundle all the input-specific functionality in one type
 ///
@@ -10,7 +55,7 @@ pub trait InputSource {
     ///
     /// This is the smallest unit dispatched into the work queue and mgiht be an article, a book or
     /// something similar.
-    fn get_input(input: &Path) -> Box<Iterator<Item=String>>;
+    fn get_input(input: &Path) -> Box<Iterator<Item=Result<String>>>;
 
     /// Reports whether preprocessing is required for this format. See prpreprocess documentation.
     fn is_preprocessing_required() -> bool;
@@ -19,6 +64,7 @@ pub trait InputSource {
     ///
     /// Pandoc, used for serializing a document, is not able to read all formatting instructions of
     /// all formats. Therefore preprocess functions may alter the content to make processing
-    /// easier.
-    fn preprocess(input: &str) -> Result<String, String>;
+    /// easier. Preprocessing functions might also strip parts of the documents, which are not
+    /// intended for the corpus.
+    fn preprocess(input: &str) -> Result<String>;
 }

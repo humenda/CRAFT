@@ -7,12 +7,13 @@ pub use self::articles::*;
 pub use self::preprocessor::*;
 
 use super::input_source;
+use super::input_source::Result;
 
 /// For documentation, please see the type Articles and MediawikiPreprocessor
 pub struct Wikipedia;
 
 impl input_source::InputSource for Wikipedia {
-    fn get_input(dst: &Path) -> Box<Iterator<Item=String>> {
+    fn get_input(dst: &Path) -> Box<Iterator<Item=Result<String>>> {
         Box::new(parser_from_file(dst))
     }
 
@@ -20,7 +21,7 @@ impl input_source::InputSource for Wikipedia {
         true
     }
 
-    fn preprocess(input: &str) -> Result<String, String> {
+    fn preprocess(input: &str) -> Result<String> {
         let mut preproc = MediawikiPreprocessor::new(input);
         preproc.preprocess()
     }

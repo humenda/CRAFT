@@ -1,9 +1,20 @@
 use bzip2::read::BzDecoder;
-use std::io::Read;
-
 use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 use xml::reader::{EventReader, XmlEvent};
+
+use super::super::input_source::Result;
+
+macro_rules! get(
+    ($e:expr) => (match $e {
+        Some(e) => e,
+        None => return None
+    })
+);
+
+
+
 
 pub struct ArticleParser<B: Read> {
     event_reader: EventReader<B>
@@ -17,15 +28,13 @@ impl<B: Read> ArticleParser<B> {
 }
 
 impl<B: Read> Iterator for ArticleParser<B> {
-    type Item = String;
+    type Item = Result<String>;
 
-    fn next(&mut self) -> Option<String> {
+    fn next(&mut self) -> Option<Result<String>> {
         let mut is_text = false;
         let mut text = String::new();
-        loop {
-            // ToDo: nice error handling, print error cause
-            let element = self.event_reader.next().unwrap();
-            let _ = match element {
+        while let Ok(element) = self.event_reader.next() {
+            match element {
                 XmlEvent::StartElement { name, .. } => {
                     if name.local_name == "text" {
                         is_text = true;
@@ -53,7 +62,7 @@ impl<B: Read> Iterator for ArticleParser<B> {
             };
         };
         if !text.is_empty() {
-            Some(text)
+            Some(Ok(text))
         } else {
             None
         }
