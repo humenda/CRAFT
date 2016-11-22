@@ -51,7 +51,6 @@ fn error_exit(msg: String, exit_code: i32) {
 }
 
 
-
 fn main() {
     let args: Vec<String> = env::args().collect();
     let program = &args[0];
@@ -62,15 +61,20 @@ fn main() {
     }
     let opts = opts.unwrap(); // safe now
 
-    let mut articles_read = 0;
-    let mut errorneous_articles = 0;
-    let pandoc = pandoc_executor::PandocFilterer::new();
     let mut result_file = File::create("text8").unwrap();
 
     let input_path = opts.opt_str("w").expect("Required input file not found.");
     let input_path = Path::new(&input_path);
-    for article in Wikipedia::get_input(&input_path) {
-        articles_read += 1;
+    let w = Box::new(Wikipedia); // ToDo
+    make_corpus(input_path, w, &mut result_file);
+}
+
+fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut File) {
+    let mut articles_read = 0;
+    let mut errorneous_articles = 0;
+    let pandoc = pandoc_executor::PandocFilterer::new();
+
+    for article in input_source.get_input(input) {
         let article = match article {
             Ok(a) => a,
             Err(_) => {
@@ -78,7 +82,7 @@ fn main() {
                 continue;
             }
         };
-        let article = match Wikipedia::preprocess(&article) {
+        let article = match input_source.preprocess(&article) {
             // ToDo: put that into some kind of log file
             Err(_) => {
                 errorneous_articles += 1;
@@ -92,6 +96,9 @@ fn main() {
         let stripped_words = text2plain::text2words(article);
         result_file.write_all(stripped_words.as_bytes()).unwrap();
         result_file.write_all(b"\n").unwrap();
+        articles_read += 1;
+
+        println!("DEBUG: read {} articles", articles_read);
         
         if (articles_read % 500) == 0 {
             println!("{} articles parsed, {} errorneous articles skipped.",

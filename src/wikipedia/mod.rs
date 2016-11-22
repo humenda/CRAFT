@@ -13,15 +13,15 @@ use super::input_source::Result;
 pub struct Wikipedia;
 
 impl input_source::InputSource for Wikipedia {
-    fn get_input(dst: &Path) -> Box<Iterator<Item=Result<String>>> {
+    fn get_input(&self, dst: &Path) -> Box<Iterator<Item=Result<String>>> {
         Box::new(parser_from_file(dst))
     }
 
-    fn is_preprocessing_required() -> bool {
+    fn is_preprocessing_required(&self) -> bool {
         true
     }
 
-    fn preprocess(input: &str) -> Result<String> {
+    fn preprocess(&self, input: &str) -> Result<String> {
         let mut preproc = MediawikiPreprocessor::new(input);
         preproc.preprocess()
     }

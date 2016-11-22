@@ -55,10 +55,10 @@ pub trait InputSource {
     ///
     /// This is the smallest unit dispatched into the work queue and mgiht be an article, a book or
     /// something similar.
-    fn get_input(input: &Path) -> Box<Iterator<Item=Result<String>>>;
+    fn get_input(&self, input: &Path) -> Box<Iterator<Item=Result<String>>>;
 
     /// Reports whether preprocessing is required for this format. See prpreprocess documentation.
-    fn is_preprocessing_required() -> bool;
+    fn is_preprocessing_required(&self) -> bool;
 
     /// Preprocess input String to be easier to process in later steps.
     ///
@@ -66,5 +66,5 @@ pub trait InputSource {
     /// all formats. Therefore preprocess functions may alter the content to make processing
     /// easier. Preprocessing functions might also strip parts of the documents, which are not
     /// intended for the corpus.
-    fn preprocess(input: &str) -> Result<String>;
+    fn preprocess(&self, input: &str) -> Result<String>;
 }

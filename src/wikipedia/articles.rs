@@ -31,30 +31,34 @@ impl<B: Read> Iterator for ArticleParser<B> {
     type Item = Result<String>;
 
     fn next(&mut self) -> Option<Result<String>> {
-        let mut is_text = false;
+        let mut is_text_element = false;
         let mut text = String::new();
         while let Ok(element) = self.event_reader.next() {
             match element {
                 XmlEvent::StartElement { name, .. } => {
                     if name.local_name == "text" {
-                        is_text = true;
+                        is_text_element = true;
                     }
                 },
                 XmlEvent::EndElement { name } => {
-                    if name.local_name == "text" && is_text {
+                    if name.local_name == "text" && is_text_element {
                         // check whether article text is only a redirect
-                        if !text.starts_with("#REDIRECT") {
-                            break;
-                        }
+                        match text.starts_with("#REDIRECT") {
+                            true => {
+                                text.clear();
+                                continue;
+                            }, // ignore redirects
+                            false => break,
+                        } 
                     }
                 },
                 XmlEvent::Characters(content) => {
-                    if is_text {
+                    if is_text_element {
                         text.push_str(&content);
                     }
                 },
                 XmlEvent::Whitespace(space) => {
-                    if is_text {
+                    if is_text_element {
                         text.push_str(&space);
                     }
             },
