@@ -15,7 +15,10 @@ Books without the `[Language: xyz]` attribute are in English.
 
 To retrieve the path to the ebook, the file /ls-R is parsed. It is formatted, as
 the name suggest, like the output of `ls -R`. This script only considers plain
-text files."""
+text files.
+
+After text files have been retrieved, they are encoded in UTF-8 and those who
+are automatically detected to be non-free (free as in freedom) are removed."""
 
 
 import datetime
@@ -48,6 +51,21 @@ def retrieve(url_path, outputfilename):
                 e.msg = '%s; url: %s' % (e.msg, url)
             raise e
 
+
+# these are local to the function below
+copyright_regexes = [re.compile('COPYRIGHT PROTECTED'), 
+        re.compile('(?:t|T)his.*COPYRIGHTED (?:P|p)roject')]
+
+def remove_copyrighted(file_name):
+    """Try to detect copyrighted books and purge them. Return True, if the book
+    was removed."""
+    with open(file_name) as f:
+        text = f.read()
+    for expr in copyright_regexes:
+        if expr.search(text):
+            os.remove(file_name)
+            return True
+    return False
 
 def parse_book_index(path):
     """Parse the GUTINDEX.ALL file and extract book number, language and title
@@ -228,6 +246,8 @@ def main(language, output_directory):
             print("Downloading %d: %s" % (book_no, bookno2meta[book_no][1]))
             retrieve(url_path, output_name)
             recode_file(output_name)
+            if remove_copyrighted(output_name):
+                print("%s is copyrighted, removed." % output_name)
     print(("%d books didn't have a download candidate (bug in the file index "
             "parser, so they were skipped.") % books_not_available)
 
