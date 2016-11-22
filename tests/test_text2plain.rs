@@ -26,7 +26,7 @@ fn test_numbers_are_ignored() {
 
 #[test]
 fn test_that_punctuation_is_removed_and_words_preserved() {
-    assert_eq!(art2words("However, I like it. :)"), "However I like it");
+    assert_eq!(art2words("However, I like it. :)"), "however i like it");
 }
 
 #[test]
@@ -34,7 +34,7 @@ fn test_words_with_hypen_work() {
     assert_eq!(art2words("this is a non-alcoholic drink"), "this is a \
                 non-alcoholic drink");
     // do suspended hyphens work:
-    assert_eq!(art2words("Using hard- and software"), "Using hard- and software");
+    assert_eq!(art2words("Using hard- and software"), "using hard- and software");
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn test_parenthesis_are_removed() {
 
 #[test]
 fn test_that_apostrophies_may_be_contained_in_word() {
-    assert_eq!(art2words("I'm not sure, O'raggley"), "I'm not sure O'raggley");
+    assert_eq!(art2words("I'm not sure, O'raggley"), "i'm not sure o'raggley");
 }
 
 #[test]
@@ -60,6 +60,12 @@ fn test_words_with_only_punctuation_etc_no_alphabetical_characters_removed() {
     assert_eq!(art2words("jo (''.) moo"), "jo moo");
 }
 
+#[test]
+fn test_that_unicode_quotes_are_removed() {
+    // example from the real world
+    let text = "Deutsch „die Hauptstadt“.";
+    assert_eq!(art2words(text), "deutsch die hauptstadt");
+}
 ////////////////////////////////////////////////////////////////////////////////
 // test the JSON AST filter
 
@@ -483,5 +489,4 @@ fn test_that_json_documents_with_more_than_unmeta_and_content_are_incorrect() {
        {\"invalid\":\"object\"]".into();
     call_filter(json_str);
 }
-
 

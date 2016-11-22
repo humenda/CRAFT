@@ -161,7 +161,9 @@ fn all_chars_alphabetical(word: &String) -> bool {
 fn remove_enclosing_characters(input: &mut String) {
     while let Some(x) = input.chars().rev().next() {
         let _ = match is_enclosing_character(x) {
-            true => input.pop(),
+            true => {
+                input.pop();
+            },
             false => break,
         };
     }
@@ -192,23 +194,18 @@ fn remove_punctuation(input: &mut String) -> bool {
 pub fn text2words(input: String) -> String {
     let mut words = String::new();
 
-    let mut sentence_ended = false;
     for word in input.split_whitespace() {
+        // remove punctuation, then  enclosing characters (quotations or parenthesis) and then
+        // remove cpunctuation again
         let mut word = String::from(word);
+        let mut punct_was_removed = remove_punctuation(&mut word);
         remove_enclosing_characters(&mut word);
-        let punct_was_removed = remove_punctuation(&mut word);
+        punct_was_removed = remove_punctuation(&mut word) || punct_was_removed;
         if all_chars_alphabetical(&word) {
             if words.len() != 0 {
                 words.push(' ');
             }
-            // if sentence just end and new line started:
-            if sentence_ended && word.chars().next().unwrap().is_uppercase() {
-                words.push_str(word.to_lowercase().as_str());
-            } else {
-                words.push_str(word.as_str());
-            }
-            // sentence_ended is only set if the word was actually taken
-            sentence_ended = punct_was_removed;
+            words.push_str(word.to_lowercase().as_str());
         }
     }
     words
