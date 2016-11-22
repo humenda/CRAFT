@@ -63,10 +63,15 @@ fn main() {
 
     let mut result_file = File::create("text8").unwrap();
 
-    let input_path = opts.opt_str("w").expect("Required input file not found.");
-    let input_path = Path::new(&input_path);
-    let w = Box::new(Wikipedia); // ToDo
-    make_corpus(input_path, w, &mut result_file);
+    if let Some(wp_path) = opts.opt_str("w") {
+        let input_path = Path::new(&wp_path);
+        let wikipedia = Box::new(Wikipedia); // ToDo
+        make_corpus(input_path, wikipedia, &mut result_file);
+    } else if let Some(gb_path) = opts.opt_str("g") {
+        let input_path = Path::new(&gb_path);
+        let gutenberg = Box::new(Gutenberg);
+        make_corpus(input_path, gutenberg, &mut result_file);
+    }
 }
 
 fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut File) {
