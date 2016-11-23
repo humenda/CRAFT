@@ -53,7 +53,7 @@ def retrieve(url_path, outputfilename):
 
 
 # these are local to the function below
-copyright_regexes = [re.compile('COPYRIGHT PROTECTED'), 
+copyright_regexes = [re.compile('COPYRIGHT PROTECTED'),
         re.compile('(?:t|T)his.*COPYRIGHTED (?:P|p)roject')]
 
 def remove_copyrighted(file_name):
@@ -184,19 +184,22 @@ def recode_file(path):
         with open(fpath, 'w', encoding="UTF-8") as f:
             f.write(data)
 
-    try:
-        data = read(path, 'UTF-8')
-        return # UTF-8, fine
-    except UnicodeDecodeError:
-        pass # see below
-    # if we're here, try latin1 next
-    try:
-        data = read(path, 'ISO-8859-1')
-    except UnicodeDecodeError:
-        pass
-    else:
-        write(path, data)
-        return
+    def load_as_unicode(fn):
+        try:
+            data = read(fn, 'UTF-8')
+            return data # UTF-8, fine
+        except UnicodeDecodeError:
+            pass # see below
+        # if we're here, try latin1 next
+        try:
+            data = read(path, 'ISO-8859-1')
+        except UnicodeDecodeError:
+            pass
+        return data
+    data = load_as_unicode(path)
+    # strip \r
+    write(path, data.replace('\r', ''))
+
 
     # if we're here, we couldn't figure out the encoding
     print("Warning: couldn't determine encoding of", path)

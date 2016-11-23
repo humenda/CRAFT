@@ -14,14 +14,15 @@ fn write_error(input: &str) {
 
 
 pub struct PandocFilterer {
-    tmpdir: TempDir
+    tmpdir: TempDir,
+    format: pandoc::InputFormat,
 }
 
 
 impl PandocFilterer {
-    pub fn new() -> PandocFilterer {
+    pub fn new(input_format: pandoc::InputFormat) -> PandocFilterer {
         let tmpdir = TempDir::new("wikipedia2plain");
-        PandocFilterer { tmpdir: tmpdir.unwrap() }
+        PandocFilterer { tmpdir: tmpdir.unwrap(), format: input_format }
     }
 
     fn tmp_create_file(&self, input: &str) -> path::PathBuf {
@@ -41,9 +42,9 @@ impl PandocFilterer {
     pub fn call_pandoc(&self, input: &str) -> String {
         let mut pandoc = pandoc::Pandoc::new();
         pandoc.set_output_format(pandoc::OutputFormat::Json);
+        pandoc.set_input_format(self.format.clone());
         pandoc.add_input(&self.tmp_create_file(&input));
         pandoc.set_output("test.plain");
-        pandoc.set_input_format(pandoc::InputFormat::MediaWiki);
         match pandoc.execute() {
             Ok(_) => (),
             Err(e) => {

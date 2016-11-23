@@ -2,6 +2,8 @@ use std::error::Error;
 use std::io;
 use std::path::Path;
 
+use pandoc;
+
 pub type Result<T> = ::std::result::Result<T, TransformationError>;
 
 #[derive(Debug)]
@@ -59,6 +61,12 @@ pub trait InputSource {
 
     /// Reports whether preprocessing is required for this format. See prpreprocess documentation.
     fn is_preprocessing_required(&self) -> bool;
+
+    /// Get input format for Pandoc
+    ///
+    /// Pandoc transforms the input format to an AST, which is transformed to plain text. To be
+    /// able to do the transformation, the input type has to be known.
+    fn get_input_format(&self) -> pandoc::InputFormat;
 
     /// Preprocess input String to be easier to process in later steps.
     ///

@@ -198,9 +198,12 @@ pub fn text2words(input: String) -> String {
         // remove punctuation, then  enclosing characters (quotations or parenthesis) and then
         // remove cpunctuation again
         let mut word = String::from(word);
-        let mut punct_was_removed = remove_punctuation(&mut word);
+        //let mut punct_was_removed = remove_punctuation(&mut word);
+        //  remove_punctuation yields boolean telling whether punctuation was removed; Useful for
+        //  determining sentences. Currently unused.
+        remove_punctuation(&mut word);
         remove_enclosing_characters(&mut word);
-        punct_was_removed = remove_punctuation(&mut word) || punct_was_removed;
+        remove_punctuation(&mut word);
         if all_chars_alphabetical(&word) {
             if words.len() != 0 {
                 words.push(' ');

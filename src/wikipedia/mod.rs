@@ -9,6 +9,8 @@ pub use self::preprocessor::*;
 use super::input_source;
 use super::input_source::Result;
 
+use pandoc;
+
 /// For documentation, please see the type Articles and MediawikiPreprocessor
 pub struct Wikipedia;
 
@@ -19,6 +21,10 @@ impl input_source::InputSource for Wikipedia {
 
     fn is_preprocessing_required(&self) -> bool {
         true
+    }
+
+    fn get_input_format(&self) -> pandoc::InputFormat {
+        return pandoc::InputFormat::MediaWiki;
     }
 
     fn preprocess(&self, input: &str) -> Result<String> {

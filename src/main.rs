@@ -77,7 +77,7 @@ fn main() {
 fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut File) {
     let mut articles_read = 0;
     let mut errorneous_articles = 0;
-    let pandoc = pandoc_executor::PandocFilterer::new();
+    let pandoc = pandoc_executor::PandocFilterer::new(input_source.get_input_format());
 
     for article in input_source.get_input(input) {
         let article = match article {
