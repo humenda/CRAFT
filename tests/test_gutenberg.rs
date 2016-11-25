@@ -9,6 +9,7 @@ fn preproc(input: &str) -> Result<String> {
     g.preprocess(input)
 }
 
+static TEN_PARS: &'static str = "\n\ntest test test\n\ntest test test\n\ntest test test\n\ntest test test\n\ntest test test\n\ntest test test\n\ntest test test\n\ntest test test\n\ntest test test\n\ntest test test";
 
 #[test]
 fn test_beginning_and_end_are_detected() {
@@ -29,9 +30,9 @@ fn test_that_content_after_beginning_of_book_is_dropped() {
 }
 
 #[test]
-fn test_that_produced_by_is_stripped() {
-    let text = "*** START OF This ...\n\nProduced by: Me! :)\n\ncontent\n\n*** END ...";
-    assert_eq!(preproc(text).unwrap(), "\ncontent\n\n");
+fn test_that_first_paragraphs_stripped() {
+    let text = format!("*** START OF This ...\n{}\n\ncontent\n*** END", TEN_PARS);
+    assert_eq!(preproc(&text).unwrap(), "content\n");
 }
 
 #[test]
@@ -41,4 +42,11 @@ fn test_that_unclosed_book_is_detected() {
     preproc(text).unwrap();
 }
 
+#[test]
+fn test_that_useless_hyphens_are_removed() {
+    let text = "*** START OF book\n\
+                \n--Foo bar--dummy, value\n\
+                *** END OF this book\n";
+    assert_eq!(preproc(text).unwrap(), "\n\n Foo bar dummy, value\n");
+}
 

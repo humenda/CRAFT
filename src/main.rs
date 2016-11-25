@@ -110,6 +110,9 @@ fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut F
                 articles_read, errorneous_articles);
         }
     }
+
+    println!("{} articles read, {} were errorneous (and could not be included)",
+        articles_read, errorneous_articles);
 }
 
 
