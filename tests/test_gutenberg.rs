@@ -1,8 +1,8 @@
 #[cfg(test)]
-extern crate wikipedia2plain;
+extern crate craft;
 
-use wikipedia2plain::gutenberg::*;
-use wikipedia2plain::input_source::*;
+use craft::gutenberg::*;
+use craft::input_source::*;
 
 fn preproc(input: &str) -> Result<String> {
     let g = Gutenberg;

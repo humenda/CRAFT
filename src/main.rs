@@ -3,7 +3,7 @@
 /// 2 -> input file / directory not found
 
 extern crate getopts;
-extern crate wikipedia2plain;
+extern crate craft;
 
 use getopts::Options;
 use std::env;
@@ -11,10 +11,10 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use wikipedia2plain::*;
-use wikipedia2plain::gutenberg::Gutenberg;
-use wikipedia2plain::input_source::InputSource;
-use wikipedia2plain::wikipedia::Wikipedia;
+use craft::*;
+use craft::gutenberg::Gutenberg;
+use craft::input_source::InputSource;
+use craft::wikipedia::Wikipedia;
 
 fn get_usage(pname: &str, opts: Options) -> String {
     let usage = format!("Usage: {} [options, ...]\n\n", pname);

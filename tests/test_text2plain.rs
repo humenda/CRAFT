@@ -1,8 +1,8 @@
 #[cfg(test)]
-extern crate wikipedia2plain;
+extern crate craft;
 
-use wikipedia2plain::*;
-use wikipedia2plain::text2plain::*;
+use craft::*;
+use craft::text2plain::*;
 
 fn art2words(input: &str) -> String {
     text2words(input.to_string())

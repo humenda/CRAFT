@@ -1,14 +1,14 @@
 [package]
-name = "wikipedia2plain"
+name = "craft"
 version = "0.1.0"
 authors = ["Sebastian Humenda <shumenda@gmx.de>"]
 
 [lib]
-name = "wikipedia2plain"
+name = "craft"
 path = "src/lib.rs"
 
 [[bin]]
-name = "wp2plain"
+name = "crafted"
 path = "src/main.rs"
 
 [dependencies]
