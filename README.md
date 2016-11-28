@@ -1,0 +1,43 @@
+CRAFT — CorpoRA-based Freedict Translations
+=============================================
+
+The goal of this program is to provide a corpus generator to feed lots of text
+data into word2vec to train a natural language model. This model is then used to
+enhance translation searches. For more information see the
+[Wikipedia article](https://en.wikipedia.org/wiki/Word2vec).
+
+This program is not finished yet. At the moment, it can import Wikipedia
+articles and Gutenberg books, more corpora are planned. They have to be free, of
+course.
+
+A second part will take care of parsing the natural language model and do the
+clever translation suggestions. The artificial language step in between is still
+carried out by the original word2vec software.
+
+Requirements
+------------
+
+This program is written in Rust. You need Rust >= 1.13 to compile it. The
+importers require Python >= 3.3.
+
+How It Works
+------------
+
+-   Input text is scraped by an importer script and serves as input to this
+    program.
+-   The transformation has three steps:
+    1.  preprocessing
+        -   remove all formatting which the actual transformation cannot cope
+            with
+        -   remove all parts which would destroy text continuity, e.g. foot
+            notes
+    2.  call pandoc to transform the document into an abstract tree
+        representation
+    3.  extract text from abstract document tree, thereby stripping all
+        formatting
+    4.  remove all non-letter character from words (punctuation, quotes, ...)
+        and remove the rest
+-   all input texts have to have \n line separators
+    -   importer scripts take care of that
+-   all input files must be encoded using UTF-8
+
