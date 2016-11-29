@@ -38,6 +38,12 @@ fn test_that_blockquotes_with_arguments_are_removed() {
 }
 
 #[test]
+fn test_that_text_within_ref_and_ref_itself_is_removed() {
+    assert_eq!(preproc("Washington<ref>Capital</ref>."), "Washington.");
+}
+
+
+#[test]
 fn test_that_unrelated_tags_are_not_affected() {
     let text = "<a href=\"fooo\">bar</a>";
     assert_eq!(preproc(text), text);
