@@ -15,9 +15,9 @@ path = "src/main.rs"
 # for wikipedia
 bzip2 = "*"
 xml-rs = "0.3"
-tempdir = "*"
 # for pandoc
-pandoc = { git = "file:///home/streicher/daten/quellen/foreign/rust-pandoc" }
+tempdir = "*"
+pandoc = { git = "https://github.com/oli-obk/rust-pandoc" }
 json = "*"
 # for the main program
 getopts = "0.2"
