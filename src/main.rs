@@ -66,16 +66,16 @@ fn main() {
     if let Some(wp_path) = opts.opt_str("w") {
         let input_path = Path::new(&wp_path);
         let wikipedia = Box::new(Wikipedia); // ToDo
-        make_corpus(input_path, wikipedia, &mut result_file);
+        make_corpus(input_path, wikipedia, &mut result_file).unwrap();
     }
     if let Some(gb_path) = opts.opt_str("g") {
         let input_path = Path::new(&gb_path);
         let gutenberg = Box::new(Gutenberg);
-        make_corpus(input_path, gutenberg, &mut result_file);
+        let _ = make_corpus(input_path, gutenberg, &mut result_file);
     }
 }
 
-fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut File) {
+fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut File) -> Result<(), String> {
     let mut articles_read = 0;
     let mut errorneous_articles = 0;
     let pandoc = pandoc_executor::PandocFilterer::new(input_source.get_input_format());
@@ -94,9 +94,12 @@ fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut F
                 errorneous_articles += 1;
                 continue;
             },
-         Ok(x) => x,
+            Ok(x) => x,
         };
-        let json_ast = pandoc.call_pandoc(&article);
+        let json_ast = match pandoc.call_pandoc(&article) {
+            Ok(t) => t,
+            Err(e) => return Err(format!("{:?}", e))
+        };
         let article = text2plain::stringify_text(json_ast);
 
         let stripped_words = text2plain::text2words(article);
@@ -114,6 +117,7 @@ fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut F
 
     println!("{} articles read, {} were errorneous (and could not be included)",
         articles_read, errorneous_articles);
+    Ok(())
 }
 
 

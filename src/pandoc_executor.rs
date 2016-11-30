@@ -5,6 +5,8 @@ use std::path;
 use tempdir::TempDir;
 use std::fs::OpenOptions;
 
+use input_source::*;
+
 // ToDo: remove
 fn write_error(input: &str) {
     let mut file = OpenOptions::new().create(true).append(true).open("error.log").unwrap();
@@ -39,20 +41,18 @@ impl PandocFilterer {
         s
     }
 
-    pub fn call_pandoc(&self, input: &str) -> String {
+    pub fn call_pandoc(&self, input: &str) -> Result<String> {
         let mut pandoc = pandoc::Pandoc::new();
         pandoc.set_output_format(pandoc::OutputFormat::Json);
         pandoc.set_input_format(self.format.clone());
         pandoc.add_input(&self.tmp_create_file(&input));
-        pandoc.set_output("test.plain");
+        pandoc.set_output(pandoc::OutputKind::Pipe);
         match pandoc.execute() {
-            Ok(_) => (),
-            Err(e) => {
-            let text = format!("{:?}\nArticle:\n{}\n", e, input);
-                write_error(&text);
-            }
-        };
-        self.tmp_get_output("test.plain")
+            Ok(pandoc::PandocOutput::ToBuffer(data)) => Ok(data),
+            Ok(x) => panic!(format!("Expected converted data, got file name instead\nThis is a bug and needs to be fixed before continuing.")),
+            Err(x) => Err(TransformationError::ErrorneousStructure(format!("{:?}\nArticle:\n{}\n",
+                                                                           x, input), None))
+        }
     }
 }
 
