@@ -67,7 +67,8 @@ fn main() {
         let input_path = Path::new(&wp_path);
         let wikipedia = Box::new(Wikipedia); // ToDo
         make_corpus(input_path, wikipedia, &mut result_file);
-    } else if let Some(gb_path) = opts.opt_str("g") {
+    }
+    if let Some(gb_path) = opts.opt_str("g") {
         let input_path = Path::new(&gb_path);
         let gutenberg = Box::new(Gutenberg);
         make_corpus(input_path, gutenberg, &mut result_file);
