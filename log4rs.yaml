@@ -1,0 +1,23 @@
+# copy me to target/debug or target/release
+refresh_rate: 30 seconds
+appenders:
+  stdout:
+    kind: console
+  logfile:
+    kind: file
+    path: "crafted.log"
+    encoder:
+      pattern: "{d} - {m}{n}"
+root:
+  level: info
+  appenders:
+    - stdout
+    - logfile
+loggers:
+  app::backend::db:
+    level: debug
+  app::logfile:
+    level: info
+    appenders:
+      - logfile
+    additive: false
