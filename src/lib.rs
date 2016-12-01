@@ -1,5 +1,7 @@
+#[macro_use]
 extern crate bzip2;
 extern crate json;
+extern crate log;
 extern crate pandoc;
 extern crate tempdir;
 extern crate xml;

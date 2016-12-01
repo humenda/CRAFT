@@ -49,7 +49,7 @@ impl PandocFilterer {
         pandoc.set_output(pandoc::OutputKind::Pipe);
         match pandoc.execute() {
             Ok(pandoc::PandocOutput::ToBuffer(data)) => Ok(data),
-            Ok(x) => panic!(format!("Expected converted data, got file name instead\nThis is a bug and needs to be fixed before continuing.")),
+            Ok(_) => panic!(format!("Expected converted data, got file name instead\nThis is a bug and needs to be fixed before continuing.")),
             Err(x) => Err(TransformationError::ErrorneousStructure(format!("{:?}\nArticle:\n{}\n",
                                                                            x, input), None))
         }

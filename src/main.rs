@@ -2,8 +2,11 @@
 /// 1 -> invalid cmd argument
 /// 2 -> input file / directory not found
 
-extern crate getopts;
 extern crate craft;
+extern crate getopts;
+#[macro_use]
+extern crate log;
+extern crate log4rs;
 
 use getopts::Options;
 use std::env;
@@ -15,6 +18,7 @@ use craft::*;
 use craft::gutenberg::Gutenberg;
 use craft::input_source::InputSource;
 use craft::wikipedia::Wikipedia;
+
 
 fn get_usage(pname: &str, opts: Options) -> String {
     let usage = format!("Usage: {} [options, ...]\n\n", pname);
@@ -45,38 +49,51 @@ fn parse_cmd(program: &str, args: &[String]) -> Result<getopts::Matches, String>
     Ok(matched)
 }
 
-fn error_exit(msg: String, exit_code: i32) {
+fn error_exit(msg: &str, exit_code: i32) {
     println!("{}", msg);
     ::std::process::exit(exit_code);
 }
 
+fn setup_logging() {
+    log4rs::init_file("log4rs.yaml", Default::default()).expect("could not open log file for writing!");
+}
+
 
 fn main() {
+    setup_logging();
     let args: Vec<String> = env::args().collect();
     let program = &args[0];
     let opts = parse_cmd(program, &args[0..]);
     if opts.is_err() {
-        error_exit(format!("Error: {}", &opts.err().unwrap()), 1);
+        error_exit(&format!("Error: {}", &opts.err().unwrap()), 1);
         return; // make compiler happy
     }
     let opts = opts.unwrap(); // safe now
 
-    let mut result_file = File::create("text8").unwrap();
+    let file_creation_result = File::create("text8");
+    if file_creation_result.is_err() {
+        error!("error while opening text8 for writing: {}", file_creation_result.err().unwrap());
+        error_exit("please make sure that the output file is writable", 22);
+    } else {
+        let mut result_file = file_creation_result.unwrap(); // safe now
 
-    if let Some(wp_path) = opts.opt_str("w") {
-        let input_path = Path::new(&wp_path);
-        let wikipedia = Box::new(Wikipedia); // ToDo
-        make_corpus(input_path, wikipedia, &mut result_file).unwrap();
-    }
-    if let Some(gb_path) = opts.opt_str("g") {
-        let input_path = Path::new(&gb_path);
-        let gutenberg = Box::new(Gutenberg);
-        let _ = make_corpus(input_path, gutenberg, &mut result_file);
+        if let Some(wp_path) = opts.opt_str("w") {
+            let input_path = Path::new(&wp_path);
+            info!("extracting Wikipedia articles from {}", input_path.to_str().unwrap());
+            let wikipedia = Box::new(Wikipedia); // ToDo
+            make_corpus(input_path, wikipedia, &mut result_file);
+        }
+        if let Some(gb_path) = opts.opt_str("g") {
+            let input_path = Path::new(&gb_path);
+            info!("Extracting Gutenberg books from {}", input_path.to_str().unwrap());
+            let gutenberg = Box::new(Gutenberg);
+            make_corpus(input_path, gutenberg, &mut result_file);
+        }
     }
 }
 
-fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut File) -> Result<(), String> {
-    let mut articles_read = 0;
+fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut File) {
+                let mut articles_read = 0; // keep it external to for loop to retrieve later
     let mut errorneous_articles = 0;
     let pandoc = pandoc_executor::PandocFilterer::new(input_source.get_input_format());
 
@@ -98,26 +115,32 @@ fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut F
         };
         let json_ast = match pandoc.call_pandoc(&article) {
             Ok(t) => t,
-            Err(e) => return Err(format!("{:?}", e))
+            Err(e) => {
+                errorneous_articles += 1;
+                warn!("entity {} culdn't be parsed with pandoc", articles_read);
+                debug!("error: {:?}", e);
+                //Err(format!("{:?}", e))
+                continue;
+            }
         };
         let article = text2plain::stringify_text(json_ast);
 
-        let stripped_words = text2plain::text2words(article);
-        result_file.write_all(stripped_words.as_bytes()).unwrap();
-        result_file.write_all(b"\n").unwrap();
+        let stripped_words = format!("{}\n", text2plain::text2words(article));
+        if let Err(msg) = result_file.write_all(stripped_words.as_bytes()) {
+            error!("could not write to output file: {}", msg);
+            error_exit("Exiting", 23);
+        }
         articles_read += 1;
 
-        println!("DEBUG: read {} articles", articles_read);
         
         if (articles_read % 500) == 0 {
-            println!("{} articles parsed, {} errorneous articles skipped.",
+            info!("{} articles parsed, {} errorneous articles skipped.",
                 articles_read, errorneous_articles);
         }
     }
 
-    println!("{} articles read, {} were errorneous (and could not be included)",
+    info!("{} articles read, {} were errorneous (and could not be included)",
         articles_read, errorneous_articles);
-    Ok(())
 }
 
 
