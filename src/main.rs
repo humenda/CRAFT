@@ -119,7 +119,6 @@ fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut F
                 errorneous_articles += 1;
                 warn!("entity {} culdn't be parsed with pandoc", articles_read);
                 debug!("error: {:?}", e);
-                //Err(format!("{:?}", e))
                 continue;
             }
         };

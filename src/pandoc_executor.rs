@@ -3,17 +3,8 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path;
 use tempdir::TempDir;
-use std::fs::OpenOptions;
 
 use input_source::*;
-
-// ToDo: remove
-fn write_error(input: &str) {
-    let mut file = OpenOptions::new().create(true).append(true).open("error.log").unwrap();
-    file.write(format!("=-=-=-=-=-=-=-=-=-=-=-=-=-=\nError: {}\n",
-                input).as_bytes()).unwrap();
-}
-
 
 pub struct PandocFilterer {
     tmpdir: TempDir,
@@ -32,13 +23,6 @@ impl PandocFilterer {
         let mut file = File::create(&fpath).unwrap();
         file.write_all(input.as_bytes()).unwrap();
         fpath
-    }
-
-    fn tmp_get_output(&self, fpath: &str) -> String {
-        let mut file = File::open(fpath).unwrap();
-        let mut s = String::new();
-        file.read_to_string(&mut s).unwrap();
-        s
     }
 
     pub fn call_pandoc(&self, input: &str) -> Result<String> {
