@@ -18,13 +18,20 @@ Requirements
 ------------
 
 This program is written in Rust. You need Rust >= 1.13 to compile it. The
-importers require Python >= 3.3.
+importers scripts require Python >= 3.3.
 
 How It Works
 ------------
 
 -   Input text is scraped by an importer script and serves as input to this
     program.
+
+    Example:
+
+    ```
+    mkdir workspace
+    python3 importers/wikipedia.py da workspace
+    ```
 -   The transformation has three steps:
     1.  preprocessing
         -   remove all formatting which the actual transformation cannot cope
@@ -37,6 +44,16 @@ How It Works
         formatting
     4.  remove all non-letter character from words (punctuation, quotes, ...)
         and remove the rest
+
+    **Example:**
+
+    ```
+    target/release/crafted -w workspace/*.bz2
+    ```
+
+
+**Remarks:**
+
 -   all input texts have to have \n line separators
     -   importer scripts take care of that
 -   all input files must be encoded using UTF-8
