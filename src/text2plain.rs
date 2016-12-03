@@ -41,18 +41,51 @@ fn handle_pandoc_entities(output: &mut String, entity: &mut object::Object) {
         },
 
         // these have a JsonValue::Array with thee values, where the second is content
-        y @ "Link" | y @ "Image" => if let Some(thing) = entity.get_mut("c") {
-            match *thing {
-                JsonValue::Array(ref mut x) if x.len() == 3 =>
-                    recurse_json_tree(output, &mut x[1]),
-                _ => panic!("{}: expected a JSON array, got: {}", y, thing),
-            }
-        },
+        y @ "Link" | y @ "Image" => handle_external_references(output, y, entity),
 
         // types to ignore
         "CodeBlock" | "RawBlock" | "HorizontalRule" | "Table" | "Superscript" |
                 "Subscript" | "Cite" | "Code" | "Math" | "RawInline" | "Null" => (),
         _ => panic!("Unknown type pandoc AST identifier found: {:?}", entity),
+    }
+}
+
+/// handle links and images entities separately
+///
+/// For links, it only makes sense to preserve the displayed text. For images it depends on the
+/// image description. Logos and icons often only consist of 1-3 words, so they do not represent
+/// valuable contextual information. Therefore only longer image descriptions are kept.
+fn handle_external_references(output: &mut String, id: &str, entity: &mut object::Object) {
+    let thing = entity.get_mut("c");
+    if !thing.is_some() {
+        return;
+    }
+    let thing = thing.unwrap();
+    // text found within the link / image
+    let mut read_text = String::new();
+    match *thing {
+        JsonValue::Array(ref mut x) if x.len() == 3 =>
+            recurse_json_tree(&mut read_text, &mut x[1]),
+        _ => panic!("{}: expected a JSON array, got: {}", id, thing),
+    }
+    // treat link and image differently:
+    match id {
+        "Link" => output.push_str(&read_text), // add as parsed
+        "Image" => { // count number of words and only keep if > 3 in image description
+            let mut split = read_text.split_whitespace();
+            let mut words_found = 0;
+            while let Some(_) = split.next() {
+                if words_found > 3 {
+                    break;
+                }
+                words_found += 1;
+            }
+            // if there's a proper description, keep text, otherwise discard
+            if words_found >= 3 {
+                output.push_str(&read_text);
+            }
+        },
+        _ => panic!("unreachable code!")
     }
 }
 

@@ -279,6 +279,19 @@ fn test_that_image_alt_text_is_kept() {
     assert_eq!(call_filter(json_str), "an image of a beef steak");
 }
 
+#[test]
+fn test_that_images_with_short_descriptions_are_ignored() {
+    // this document contains a Image element
+    let json_str: String = "[{\"unMeta\":{}},\
+      [{\"t\":\"Para\",\"c\":[{\"t\":\"Str\",\"c\":\"bla\"},\
+      {\"t\":\"SoftBreak\",\"c\":[]},\
+      {\"t\":\"Image\",\"c\":[[\"\",[],[]],[{\"t\":\"Str\",\"c\":\"infobox\"}],\
+      [\"bla.png\",\"\"]]},\
+      {\"t\":\"SoftBreak\",\"c\":[]},\
+      {\"t\":\"Str\",\"c\":\"cow\"}]}]]\
+      ".into();
+    assert_eq!(call_filter(json_str), "bla cow");
+}
 
 // ToDo: does this element still exist?
 //fn test_that_note_is_serialized_correctly() {
