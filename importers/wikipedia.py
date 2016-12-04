@@ -38,7 +38,6 @@ def main():
     output_file = os.path.join(output_directory, url.split('/')[-1])
 
     with urllib.request.urlopen(url) as u:
-        # convert content-length from octets to decimal
         size = int(u.info().get('Content-Length'))
         print('Downloading %.1f MB from %s' % (size / 1024 / 1024, url))
         downloaded_so_far = 0
