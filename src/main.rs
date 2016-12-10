@@ -44,7 +44,12 @@ fn parse_cmd(program: &str, args: &[String]) -> Result<getopts::Matches, String>
                 get_usage(program, opts)));
     }
     let matched = matched.unwrap();
-    if !matched.opt_present("w") && !matched.opt_present("g") && !matched.opt_present("e") {
+    if matched.opt_present("h") {
+        println!("{}", get_usage(program, opts));
+        ::std::process::exit(0);
+    }
+    if !matched.opt_present("w") && !matched.opt_present("g") && !matched.opt_present("e") &&
+        !matched.opt_present("h") {
         return Err(format!("At least one output generator needs to be given.\n{}",
                            get_usage(program, opts)));
     }
@@ -63,7 +68,6 @@ fn setup_logging() {
 
 
 fn main() {
-    setup_logging();
     let args: Vec<String> = env::args().collect();
     let program = &args[0];
     let opts = parse_cmd(program, &args[0..]);
@@ -72,6 +76,8 @@ fn main() {
         return; // make compiler happy
     }
     let opts = opts.unwrap(); // safe now
+
+    setup_logging();
 
     let file_creation_result = File::create("text8");
     if file_creation_result.is_err() {
