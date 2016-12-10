@@ -1,24 +1,9 @@
-use std::io::Read;
 use std::fs;
 use std::path::Path;
 use super::input_source::*;
+use super::common;
 
 use pandoc;
-
-macro_rules! get(
-    ($e:expr) => (match $e {
-        Some(e) => e,
-        None => return None
-    })
-);
-
-/// Return the contents of a file
-fn read_file(path: &Path) -> Result<String> {
-    let f = fs::File::open(path);
-    let mut content = String::new();
-    f?.read_to_string(&mut content)?;
-    Ok(content)
-}
 
 pub struct FileIterator {
     file_list: fs::ReadDir
@@ -34,7 +19,7 @@ impl Iterator for FileIterator {
                     let fname = e.file_name();
                     let fname = get!(fname.to_str());
                     if fname.ends_with(".txt")  {
-                        return match read_file(&e.path()) {
+                        return match common::read_file(&e.path()) {
                             Ok(x) => return Some(Ok(x)),
                             _ => None
                         }

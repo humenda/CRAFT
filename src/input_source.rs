@@ -1,3 +1,4 @@
+use json;
 use std::error::Error;
 use std::io;
 use std::path::Path;
@@ -10,15 +11,17 @@ pub type Result<T> = ::std::result::Result<T, TransformationError>;
 pub enum TransformationError {
     IoError(io::Error),
     /// STructural errors; may contain a message and an otpional path
-    ErrorneousStructure(String, Option<String>)
+    ErrorneousStructure(String, Option<String>),
+    JsonError(json::Error)
 }
 
 impl ::std::fmt::Display for TransformationError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         match *self {
-            TransformationError::IoError(ref e) => e.fmt(f),
             TransformationError::ErrorneousStructure(ref msg, ref path) => write!(f,
                           "{}{}", msg, path.clone().unwrap_or_else(String::new)),
+            TransformationError::IoError(ref e) => e.fmt(f),
+            TransformationError::JsonError(ref e) => e.fmt(f),
         }
     }
 }
@@ -28,12 +31,14 @@ impl Error for TransformationError {
         match *self {
             TransformationError::ErrorneousStructure(_, _) => "invalid structure",
             TransformationError::IoError(ref err) => err.description(),
+            TransformationError::JsonError(ref err) => err.description(),
         }
     }
 
     fn cause(&self) -> Option<&Error> {
         match *self {
             TransformationError::IoError(ref err) => err.cause(),
+            TransformationError::JsonError(ref err) => err.cause(),
             _ => None,
         }
     }
@@ -46,6 +51,11 @@ impl From<::std::io::Error> for TransformationError {
     }
 }
 
+impl From<json::Error> for TransformationError {
+    fn from(err: json::Error) -> TransformationError {
+        TransformationError::JsonError(err)
+    }
+}
 
 /// Bundle all the input-specific functionality in one type
 ///
