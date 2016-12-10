@@ -9,7 +9,8 @@ pub type Result<T> = ::std::result::Result<T, TransformationError>;
 
 #[derive(Debug)]
 pub enum TransformationError {
-    IoError(io::Error),
+    /// Save an IO error and the path to the file where the io::Error occurred (if possible)
+    IoError(io::Error, Option<String>),
     /// STructural errors; may contain a message and an otpional path
     ErrorneousStructure(String, Option<String>),
     JsonError(json::Error)
@@ -20,7 +21,10 @@ impl ::std::fmt::Display for TransformationError {
         match *self {
             TransformationError::ErrorneousStructure(ref msg, ref path) => write!(f,
                           "{}{}", msg, path.clone().unwrap_or_else(String::new)),
-            TransformationError::IoError(ref e) => e.fmt(f),
+            TransformationError::IoError(ref e, ref path) => {
+                write!(f, "{}: ", path.clone().unwrap_or(String::from("<no path>")))?;
+                Ok(e.fmt(f)?)
+            },
             TransformationError::JsonError(ref e) => e.fmt(f),
         }
     }
@@ -30,24 +34,24 @@ impl Error for TransformationError {
     fn description(&self) -> &str {
         match *self {
             TransformationError::ErrorneousStructure(_, _) => "invalid structure",
-            TransformationError::IoError(ref err) => err.description(),
+            TransformationError::IoError(ref err, _) => err.description(),
             TransformationError::JsonError(ref err) => err.description(),
         }
     }
 
     fn cause(&self) -> Option<&Error> {
         match *self {
-            TransformationError::IoError(ref err) => err.cause(),
+            TransformationError::IoError(ref err, _) => err.cause(),
             TransformationError::JsonError(ref err) => err.cause(),
             _ => None,
         }
     }
 }
 
-/// allow seamless coercion from::Error 
+/// allow seamless coercion from io::Error 
 impl From<::std::io::Error> for TransformationError {
     fn from(err: ::std::io::Error) -> TransformationError {
-        TransformationError::IoError(err)
+        TransformationError::IoError(err, None)
     }
 }
 

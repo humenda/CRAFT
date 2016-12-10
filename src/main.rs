@@ -27,10 +27,13 @@ fn get_usage(pname: &str, opts: Options) -> String {
 
 fn parse_cmd(program: &str, args: &[String]) -> Result<getopts::Matches, String> {
     let mut opts = Options::new();
-    opts.optopt("o", "", "set output file name", "NAME");
+    opts.optopt("e", "europeana", "activate europeana extractor for parsing news paper dumps",
+                "DIRECTORY");
     opts.optopt("g", "gutenberg", "activate the Gutenberg corpus extractor \
-                 and read Gutenberg books from the specified path", "DIRECTORY");
+                and read Gutenberg books from the specified path", "DIRECTORY");
     opts.optflag("h", "help", "print this help");
+    // ToDo: unused
+    opts.optopt("o", "", "set output file name", "NAME");
     opts.optopt("w", "wikipedia", "activate the Wikipedia corpus extractor \
                  and read Wikipedia articles from the specified bzipped XML \
                  article-only dump", "FILE");
@@ -41,7 +44,7 @@ fn parse_cmd(program: &str, args: &[String]) -> Result<getopts::Matches, String>
                 get_usage(program, opts)));
     }
     let matched = matched.unwrap();
-    if !matched.opt_present("w") && !matched.opt_present("g") {
+    if !matched.opt_present("w") && !matched.opt_present("g") && !matched.opt_present("e") {
         return Err(format!("At least one output generator needs to be given.\n{}",
                            get_usage(program, opts)));
     }
@@ -89,6 +92,12 @@ fn main() {
             let gutenberg = Box::new(Gutenberg);
             make_corpus(input_path, gutenberg, &mut result_file);
         }
+        if let Some(europeana_path) = opts.opt_str("e") {
+            let input_path = Path::new(&europeana_path);
+            info!("Extracting news paper articles from {}", input_path.to_str().unwrap());
+            let europeana = Box::new(europeana::Europeana);
+            make_corpus(input_path, europeana, &mut result_file);
+        }
     }
 }
 
@@ -100,8 +109,9 @@ fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut F
     for article in input_source.get_input(input) {
         let article = match article {
             Ok(a) => a,
-            Err(_) => {
+            Err(e) => {
                 errorneous_articles += 1;
+                debug!("Got errorneous article: {:?}", e);
                 continue;
             }
         };

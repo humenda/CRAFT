@@ -26,7 +26,7 @@ impl Iterator for FileIterator {
                     }
                 },
                 // ToDo: why does automatic coercion not work
-                Err(e) => return Some(Err(TransformationError::IoError(e))),
+                Err(e) => return Some(Err(TransformationError::IoError(e, None))),
             }
         }
         None
