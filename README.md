@@ -7,7 +7,7 @@ enhance translation searches. For more information see the
 [Wikipedia article](https://en.wikipedia.org/wiki/Word2vec).
 
 This program is not finished yet. At the moment, it can import Wikipedia
-articles and Gutenberg books, more corpora are planned. They have to be free, of
+articles, Gutenberg books and articles from Europeana. More corpora are planned. They have to be free, of
 course.
 
 A second part will take care of parsing the natural language model and do the
@@ -57,4 +57,15 @@ How It Works
 -   all input texts have to have \n line separators
     -   importer scripts take care of that
 -   all input files must be encoded using UTF-8
+
+A Word About The Importers
+--------------------------
+
+Wikipedia has the best quality of texts by far. Gutenberg books are quite good
+in general, too, but can contain English text, although care has been taken to
+prevent this.
+
+The Europeana module is experimental. The texts from the project are in general
+in quite a bad state, because they have been scanned using a OCR software and
+contain quite a lot of errors.
 
