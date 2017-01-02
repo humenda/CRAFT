@@ -12,6 +12,9 @@ name = "crafted"
 path = "src/main.rs"
 
 [dependencies]
+# for europarl
+flate2 = "*"
+tar = "*"
 # for wikipedia
 bzip2 = "*"
 xml-rs = "0.3"

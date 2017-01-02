@@ -252,7 +252,7 @@ def main(language, output_directory):
             if remove_copyrighted(output_name):
                 print("%s is copyrighted, removed." % output_name)
     print(("%d books didn't have a download candidate (bug in the file index "
-            "parser, so they were skipped.") % books_not_available)
+            "parser, so they were skipped).") % books_not_available)
 
 
 if __name__ == '__main__':
