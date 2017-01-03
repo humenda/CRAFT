@@ -14,6 +14,7 @@ pub mod pandoc_executor;
 pub mod text2plain;
 
 /// input sources
+pub mod codecivil;
 pub mod europeana;
 pub mod gutenberg;
 pub mod wikipedia;

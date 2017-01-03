@@ -38,6 +38,9 @@ fn get_usage(pname: &str, opts: Options) -> String {
 
 fn parse_cmd(program: &str, args: &[String]) -> Result<getopts::Matches, String> {
     let mut opts = Options::new();
+    opts.optopt("c", "codecivil", "activate code civil extractor, parsing \
+                French laws from MarkDown files", "DIRECTORY");
+
     opts.optopt("e", "europeana", "activate europeana extractor for parsing news paper dumps",
                 "DIRECTORY");
     opts.optopt("g", "gutenberg", "activate the Gutenberg corpus extractor \
@@ -60,8 +63,8 @@ fn parse_cmd(program: &str, args: &[String]) -> Result<getopts::Matches, String>
         ::std::process::exit(0);
     }
     if !matched.opt_present("w") && !matched.opt_present("g") && !matched.opt_present("e") &&
-        !matched.opt_present("h") {
-        return Err(format!("At least one output generator needs to be given.\n{}",
+        !matched.opt_present("c") && !matched.opt_present("h") {
+            return Err(format!("At least one output generator needs to be given.\n{}",
                            get_usage(program, opts)));
     }
 
@@ -117,6 +120,12 @@ fn main() {
             info!("Extracting news paper articles from {}", input_path.to_str().unwrap());
             let europeana = Box::new(europeana::Europeana);
             make_corpus(input_path, europeana, &mut result_file);
+        }
+        if let Some(cc_path) = opts.opt_str("c") {
+            let input_path = Path::new(&cc_path);
+            info!("Extracting the code civil from {}", input_path.to_str().unwrap());
+            let codecivil = Box::new(codecivil::CodeCivil);
+            make_corpus(input_path, codecivil, &mut result_file);
         }
     }
 }
