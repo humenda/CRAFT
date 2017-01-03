@@ -1,6 +1,14 @@
-/// ToDo: document exit codes
-/// 1 -> invalid cmd argument
-/// 2 -> input file / directory not found
+/// CRAFT — CorpoRA-based Freedict Translations
+///
+/// The CRAFT library and the crafted binary provide a corpus construction facility by parsing many
+/// sources into one corpus which can be used for training word2vec. It is easy to include or
+/// exclude certain data sources and also easy to add new ones.
+///
+/// The crafted binary has the following exit codes:
+///
+/// - 1: invalid cmd argument
+/// - 22: - output not writable
+/// - 23: error while writing to output
 
 extern crate craft;
 extern crate getopts;
@@ -21,8 +29,11 @@ use craft::wikipedia::Wikipedia;
 
 
 fn get_usage(pname: &str, opts: Options) -> String {
-    let usage = format!("Usage: {} [options, ...]\n\n", pname);
-            opts.usage(&usage)
+    let description = "Crafted parses various input sources to produce a word corpus, which can then be \
+        \nused by Word2vec. The output is written to a file called text8, which is over- \
+        \nwritten on each launch.";
+    let usage = format!("Usage: {} [options, ...]\n\n{}\n", pname, description);
+    opts.usage(&usage)
 }
 
 fn parse_cmd(program: &str, args: &[String]) -> Result<getopts::Matches, String> {
@@ -79,9 +90,12 @@ fn main() {
 
     setup_logging();
 
-    let file_creation_result = File::create("text8");
+    let output_name = opts.opt_str("o").unwrap_or("text8".into());
+    let file_creation_result = File::create(&output_name);
     if file_creation_result.is_err() {
-        error!("error while opening text8 for writing: {}", file_creation_result.err().unwrap());
+        error!("error while opening {} for writing: {}", output_name,
+               file_creation_result.err().unwrap());
+    
         error_exit("please make sure that the output file is writable", 22);
     } else {
         let mut result_file = file_creation_result.unwrap(); // safe now
