@@ -76,14 +76,6 @@ pub trait InputSource {
     /// Reports whether preprocessing is required for this format. See prpreprocess documentation.
     fn is_preprocessing_required(&self) -> bool;
 
-    /// Reports whether processing is required for this data source
-    ///
-    /// In some cases, the data is already so much preprocessed for machine learning, that it
-    /// doesn't require the conversion with pandoc and is available in plain text already. If this
-    /// function returns true, the pandoc step is skipped.
-    fn is_processing_required(&self) -> bool;
-
-
     /// Get input format for Pandoc
     ///
     /// Pandoc transforms the input format to an AST, which is transformed to plain text. To be

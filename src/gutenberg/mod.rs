@@ -46,10 +46,6 @@ impl InputSource for Gutenberg {
         true
     }
 
-    fn is_processing_required(&self) -> bool {
-        true
-    }
-
     fn get_input_format(&self) -> pandoc::InputFormat {
         return pandoc::InputFormat::Markdown;
     }

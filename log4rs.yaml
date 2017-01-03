@@ -3,6 +3,9 @@ refresh_rate: 30 seconds
 appenders:
   stdout:
     kind: console
+    encoder:
+      pattern: "{m}{n}"
+
   logfile:
     kind: file
     path: "crafted.log"

@@ -132,18 +132,16 @@ fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut F
             };
         }
 
-        if input_source.is_processing_required() {
-            let json_ast = match pandoc.call_pandoc(&article) {
-                Ok(t) => t,
-                Err(e) => {
-                    errorneous_articles += 1;
-                    warn!("entity {} culdn't be parsed with pandoc", articles_read);
-                    debug!("error: {:?}", e);
-                    continue;
-                }
-            };
-            article = text2plain::stringify_text(json_ast);
-        }
+        let json_ast = match pandoc.call_pandoc(&article) {
+            Ok(t) => t,
+            Err(e) => {
+                errorneous_articles += 1;
+                warn!("entity {} culdn't be parsed with pandoc", articles_read);
+                debug!("error: {:?}", e);
+                continue;
+            }
+        };
+        article = text2plain::stringify_text(json_ast);
 
         let stripped_words = format!("{}\n", text2plain::text2words(article));
         if let Err(msg) = result_file.write_all(stripped_words.as_bytes()) {

@@ -50,6 +50,7 @@ impl Articles {
 }
 
 /// return an TransformationError; simple short-hand
+#[inline]
 fn mkerr(input: &str, o: Option<String>) -> Result<String> {
     Err(TransformationError::ErrorneousStructure(input.to_string(), o))
 }
@@ -98,10 +99,6 @@ impl InputSource for Europeana {
 
     fn is_preprocessing_required(&self) -> bool {
         false
-    }
-
-    fn is_processing_required(&self) -> bool {
-        true
     }
 
     fn get_input_format(&self) -> pandoc::InputFormat {
