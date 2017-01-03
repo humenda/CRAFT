@@ -13,8 +13,8 @@ path = "src/main.rs"
 
 [dependencies]
 # for europarl
-flate2 = "*"
-tar = "*"
+flate2 = "0.2"
+tar = "0.4"
 # for wikipedia
 bzip2 = "*"
 xml-rs = "0.3"
