@@ -66,6 +66,13 @@ fn test_that_unicode_quotes_are_removed() {
     let text = "Deutsch „die Hauptstadt“.";
     assert_eq!(art2words(text), "deutsch die hauptstadt");
 }
+
+#[test]
+fn test_newline_markers_keep_newline() {
+    let text = "abc \x07 def".into();
+    assert_eq!(art2words(text), "abc\ndef");
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // test the JSON AST filter
 
@@ -166,7 +173,7 @@ fn test_that_smallcaps_is_serialized_correctly() {
 
 #[test]
 fn test_that_cite_is_serialized_correctly() {
-    // this document contains a Cite element
+    // this document contains a Cite element, which should be ignored
     let json_str: String = "[{\"unMeta\": {}},\
        [{\"c\": [{\"c\": [[{\"citationPrefix\": [], \"citationId\": \"someauthor\", \"citationNoteNum\": 0, \"citationMode\": {\"c\": [], \"t\": \"NormalCitation\"},\
        \"citationHash\": 0, \"citationSuffix\": []}],\
@@ -355,7 +362,7 @@ fn test_that_para_is_serialized_correctly() {
 
 #[test]
 fn test_that_blockquote_is_serialized_correctly() {
-    // this document contains a Blockquote element
+    // this document contains a Blockquote element, text and author should be serialized
     let json_str: String = "[{\"unMeta\": {}},\
        [{\"t\": \"BlockQuote\", \"c\": [{\"t\": \"Para\", \"c\": [{\"t\": \"Str\", \"c\": \"never\"},\
        {\"t\": \"Space\", \"c\": []},\
@@ -366,7 +373,8 @@ fn test_that_blockquote_is_serialized_correctly() {
        {\"t\": \"Str\", \"c\": \"snow\"},\
        {\"t\": \"Space\", \"c\": []},\
        {\"t\": \"Str\", \"c\": \"SomeAuthor\"}]}]}]]".into();
-    assert_eq!(call_filter(json_str), "never eat yellow snow SomeAuthor");
+    // don't test for equality, because there might be newline indicators at the end
+    assert!(call_filter(json_str).starts_with("never eat yellow snow SomeAuthor"));
 }
 
 

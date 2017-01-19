@@ -166,7 +166,8 @@ fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut F
         };
         article = textfilter::stringify_text(json_ast);
 
-        let stripped_words = format!("{}\n", textfilter::text2words(article));
+        let mut stripped_words = textfilter::text2words(article);
+        stripped_words.push('\n');
         if let Err(msg) = result_file.write_all(stripped_words.as_bytes()) {
             error!("could not write to output file: {}", msg);
             error_exit("Exiting", 23);

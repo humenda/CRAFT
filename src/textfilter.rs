@@ -3,13 +3,13 @@ use pandoc;
 
 use input_source::{Result, TransformationError};
 
+static RETURN_ESCAPE_SEQUENCE: char = '\x07';
 /// Manage conversion of documents with pandoc
 ///
 /// This simple struct sets up a pandoc converter and adds the given format as an otpion. Its only
 /// method `call_pandoc` transparently pipes the given String into pandoc and reads its output back
 /// into a json String.
-pub fn call_pandoc(input_format: pandoc::InputFormat, input: String)
-    -> Result<String> {
+pub fn call_pandoc(input_format: pandoc::InputFormat, input: String) -> Result<String> {
     let mut p = pandoc::new();
     p.set_output_format(pandoc::OutputFormat::Json);
     //p.set_input_format(input_format.clone());
@@ -28,6 +28,19 @@ pub fn call_pandoc(input_format: pandoc::InputFormat, input: String)
 /// Handle all different kind of pandoc objects in a Pandoc AST (e.g. Header or Str); for more doc,
 /// see  stringify_text
 fn handle_pandoc_entities(output: &mut String, entity: &mut object::Object) {
+    // to mark the beginning of a new context for word2vec, newlines are required at certain points
+    // (e.g. paragraphs); these are escaped with RETURN_ESCAPE_SEQUENCE and have to be surrounded
+    // by spaces:
+    let add_newline = |o: &mut String| {
+        // add newline if there has been text inserted aaand previous text chunk is no newline
+        // indicator; new line indicators are always " \x07 ", so the last char can be skipped
+        if o.len() > 1 && o.chars().last().unwrap() == RETURN_ESCAPE_SEQUENCE {
+            o.push(' ');
+            o.push(RETURN_ESCAPE_SEQUENCE);
+            o.push(' ');
+        }
+    };
+
     // every pandoc object consists of a "t" (type) and a content "c"; match on the type:
     match entity.get("t").unwrap_or_else(|| panic!("broken json")).to_string().as_ref() {
         // add a space, if last character wasn't already a space
@@ -38,17 +51,25 @@ fn handle_pandoc_entities(output: &mut String, entity: &mut object::Object) {
 
         // use take_string to extract the string of this element
         "Str" => if let Some(x) = entity.get_mut("c") {
+            // ToDo: shorter?
             output.push_str(x.take_string().unwrap().clone().as_ref());
         },
 
         // handle heading; third element  contains content
         "Header" => if let Some(heading) = entity.get_mut("c") {
             recurse_json_tree(output, &mut heading[2]); // 2nd element of array contains content
+            add_newline(output);
         },
 
-        // these all contain JsonValue::Array, so better process them with recursion
-        "Para" | "Plain" | "BlockQuote" | "BulletList" | "DefinitionList" |
-                "Emph" | "Strong" | "Strikeout" | "SmallCaps" | "Note" =>
+        // these should have a newline after these elements
+        "Para" | "Plain" | "BlockQuote" | "BulletList" | "DefinitionList" =>
+            if let Some(thing) = entity.get_mut("c") {
+                recurse_json_tree(output, thing); // recurse list of children
+                add_newline(output);
+        },
+
+        // these elements also contain a list of children, but should not be followed by a newline
+        "Emph" | "Strong" | "Strikeout" | "SmallCaps" | "Note" =>
             if let Some(thing) = entity.get_mut("c") {
                 recurse_json_tree(output, thing);
         },
@@ -57,8 +78,12 @@ fn handle_pandoc_entities(output: &mut String, entity: &mut object::Object) {
         t @ "OrderedList" | t @ "Div" | t @ "Span" =>
             if let Some(array) = entity.get_mut("c") {
                 match *array {
-                    JsonValue::Array(ref mut x) if x.len() == 2 =>
-                        recurse_json_tree(output, &mut x[1]),
+                    JsonValue::Array(ref mut x) if x.len() == 2 => {
+                        recurse_json_tree(output, &mut x[1]);
+                        if t != "Span" { // newline after all except span
+                            add_newline(output);
+                        }
+                    },
                     _ => panic!("{}: expected a JSON array with length 2, got: {}",
                                 t, array),
             }
@@ -235,15 +260,13 @@ fn remove_enclosing_characters(input: &mut String) {
 }
 
 /// strip punctuation and return whether punctuation has been stripped
-fn remove_punctuation(input: &mut String) -> bool {
-    let old_length = input.len();
+fn remove_punctuation(input: &mut String) {
     while let Some(punct) = input.chars().rev().next() {
         let _ = match is_punctuation(punct) {
             true => input.pop(),
             false => break
         };
     }
-    old_length == input.len() // if they don't match, punctuation has been removed
 }
 
 // only keep the words of a text, separated by spaces. Line breaks, indentation, multiple spaces
@@ -252,20 +275,24 @@ pub fn text2words(input: String) -> String {
     let mut words = String::new();
 
     for word in input.split_whitespace() {
-        // remove punctuation, then  enclosing characters (quotations or parenthesis) and then
-        // remove cpunctuation again
-        let mut word = String::from(word);
-        //let mut punct_was_removed = remove_punctuation(&mut word);
-        //  remove_punctuation yields boolean telling whether punctuation was removed; Useful for
-        //  determining sentences. Currently unused.
-        remove_punctuation(&mut word);
-        remove_enclosing_characters(&mut word);
-        remove_punctuation(&mut word);
-        if all_chars_alphabetical(&word) {
-            if words.len() != 0 {
-                words.push(' ');
+        // newline indicators are " \x07 ", so length 3 and word[1] === RETURN_ESCAPE_SEQUENCE:
+        if word.len() == 1 && word.chars().next() == Some(RETURN_ESCAPE_SEQUENCE) {
+            words.push('\n');
+        } else {
+            // remove punctuation, then  enclosing characters (quotations or parenthesis) and then
+            // remove cpunctuation again
+            let mut word = String::from(word);
+            //  remove_punctuation yields boolean telling whether punctuation was removed; Useful for determining sentences. Currently unused.
+            remove_punctuation(&mut word);
+            remove_enclosing_characters(&mut word);
+            remove_punctuation(&mut word);
+            if all_chars_alphabetical(&word) {
+                if words.len() != 0 && words.chars().last() != Some('\n') {
+                    words.push(' ');
+                }
+
+                words.push_str(word.to_lowercase().as_str());
             }
-            words.push_str(word.to_lowercase().as_str());
         }
     }
     words
