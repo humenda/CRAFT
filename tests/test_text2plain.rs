@@ -2,7 +2,7 @@
 extern crate craft;
 
 use craft::*;
-use craft::text2plain::*;
+use craft::textfilter::*;
 
 fn art2words(input: &str) -> String {
     text2words(input.to_string())
@@ -70,7 +70,7 @@ fn test_that_unicode_quotes_are_removed() {
 // test the JSON AST filter
 
 fn call_filter(js_str: String) -> String {
-    text2plain::stringify_text(js_str)
+    textfilter::stringify_text(js_str)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -9,8 +9,7 @@ extern crate xml;
 pub mod input_source; // must be first, Result<> defined here
 #[macro_use]
 mod common; // define this one second, contains macros
-pub mod pandoc_executor;
-pub mod text2plain;
+pub mod textfilter;
 
 /// input sources
 pub mod codecivil;

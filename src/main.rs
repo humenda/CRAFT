@@ -154,7 +154,7 @@ fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut F
             };
         }
 
-        let json_ast = match pandoc_executor::call_pandoc(input_source.get_input_format(),
+        let json_ast = match textfilter::call_pandoc(input_source.get_input_format(),
                     article) {
             Ok(t) => t,
             Err(e) => {
@@ -164,9 +164,9 @@ fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut F
                 continue;
             }
         };
-        article = text2plain::stringify_text(json_ast);
+        article = textfilter::stringify_text(json_ast);
 
-        let stripped_words = format!("{}\n", text2plain::text2words(article));
+        let stripped_words = format!("{}\n", textfilter::text2words(article));
         if let Err(msg) = result_file.write_all(stripped_words.as_bytes()) {
             error!("could not write to output file: {}", msg);
             error_exit("Exiting", 23);
