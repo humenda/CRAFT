@@ -1,9 +1,20 @@
+//! Convert any document to "plain plain text"
+//!
+//! Word2vec requires text to be without any punctuation, not intermixed with numbers, equal
+//! spacing, etc. This module contains two things:
+//!
+//! 1.  Functions to call Pandoc and use its abstract document tree to iterate over it and extract
+//!     _only_ text and to preserve context information for Word2vec on a pargraph level.
+//! 2.  A function to strip white spaces, punctuation and surrounding characters, e.g. parenthesis.
 use json::{self, object, JsonValue};
 use pandoc;
 
 use input_source::{Result, TransformationError};
 
-static RETURN_ESCAPE_SEQUENCE: char = '\x07';
+/// An internal escape sequence for newlines, see documentation on functions of this module.
+pub static RETURN_ESCAPE_SEQUENCE: char = '\x07';
+
+
 /// Manage conversion of documents with pandoc
 ///
 /// This simple struct sets up a pandoc converter and adds the given format as an otpion. Its only
@@ -25,8 +36,8 @@ pub fn call_pandoc(input_format: pandoc::InputFormat, input: String) -> Result<S
 }
 
 
-/// Handle all different kind of pandoc objects in a Pandoc AST (e.g. Header or Str); for more doc,
-/// see  stringify_text
+// Handle all different kind of pandoc objects in a Pandoc AST (e.g. Header or Str); for more doc,
+// see  stringify_text
 fn handle_pandoc_entities(output: &mut String, entity: &mut object::Object) {
     // to mark the beginning of a new context for word2vec, newlines are required at certain points
     // (e.g. paragraphs); these are escaped with RETURN_ESCAPE_SEQUENCE and have to be surrounded
@@ -168,12 +179,16 @@ fn recurse_json_tree(output: &mut String, jsval: &mut JsonValue) {
 
 /// Filter the Pandoc AST for plain text
 ///
-/// Pandoc parses the document into an abstract syntax tree (AST), which can represent the whole
-/// document. Objects (JSON) always consist of `"t":"some_type"` and 
+/// Pandoc parses the document with its formatting into an abstract syntax tree, made available as
+/// a JSON string. The (JSON) objects always consist of `"t":"some_type"` and 
 /// `"c":`content`. Content can either be another object or most likely, a JSON array. This module
-/// parses the plain text bits out of this AST. It does not preserve white space, but puts each
-/// word, separated by a space, next to each other. Hence a String with a single line is the
-/// result.
+/// parses the plain text bits out of this AST. It does not preserve line breaks (except for one
+/// exception, see below). Words and white space are added verbatim, as they are in the document.
+/// All formatting is removed.\
+/// For block elements as Paragraphs, Lists, etc, a special character, the RETURN_ESCAPE_SEQUENCE,
+/// is inserted (surrounded by a space). This way, further post-processing functions can
+/// distinguish between semantically important line breaks and those which are not relevant. The
+/// [module documentation](index.html) gives more detail about the "importance" of line breaks.
 pub fn stringify_text(pandoc_dump: String) -> String {
     let ast = json::parse(&pandoc_dump).unwrap();
     let mut output = String::new();
@@ -259,7 +274,7 @@ fn remove_enclosing_characters(input: &mut String) {
     }
 }
 
-/// strip punctuation and return whether punctuation has been stripped
+// strip punctuation and return whether punctuation has been stripped
 fn remove_punctuation(input: &mut String) {
     while let Some(punct) = input.chars().rev().next() {
         let _ = match is_punctuation(punct) {
@@ -269,8 +284,11 @@ fn remove_punctuation(input: &mut String) {
     }
 }
 
-// only keep the words of a text, separated by spaces. Line breaks, indentation, multiple spaces
-// and punctuation (including parenthesis, etc.) are removed.
+/// Strip punctuation, parenthesis, numbers and useless white space.
+///
+/// This function Strips punctuation, parenthesis, numbers and useless white space., basically only
+/// keeping words separated by a single space. An exception is the char RETURN_ESCAPE_SEQUENCE
+/// (surrounded by a space), which will enforce a line break.
 pub fn text2words(input: String) -> String {
     let mut words = String::new();
 
