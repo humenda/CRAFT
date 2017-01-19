@@ -18,9 +18,8 @@ tar = "0.4"
 # for wikipedia
 bzip2 = "*"
 xml-rs = "0.3"
-# for pandoc
-tempdir = "*"
-pandoc = { git = "https://github.com/oli-obk/rust-pandoc" }
+# for transformaing format x into plain text:
+pandoc = "0.5.1"
 json = "*"
 # for the main program
 getopts = "0.2"

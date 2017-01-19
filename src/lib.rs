@@ -3,7 +3,6 @@ extern crate json;
 #[macro_use]
 extern crate log;
 extern crate pandoc;
-extern crate tempdir;
 extern crate xml;
 
 

@@ -133,7 +133,6 @@ fn main() {
 fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut File) {
                 let mut articles_read = 0; // keep it external to for loop to retrieve later
     let mut errorneous_articles = 0;
-    let pandoc = pandoc_executor::PandocFilterer::new(input_source.get_input_format());
 
     for article in input_source.get_input(input) {
         let mut article = match article {
@@ -155,7 +154,8 @@ fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut F
             };
         }
 
-        let json_ast = match pandoc.call_pandoc(&article) {
+        let json_ast = match pandoc_executor::call_pandoc(input_source.get_input_format(),
+                    article) {
             Ok(t) => t,
             Err(e) => {
                 errorneous_articles += 1;
