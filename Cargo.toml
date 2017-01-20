@@ -12,16 +12,16 @@ name = "crafted"
 path = "src/main.rs"
 
 [dependencies]
-# for europarl
-flate2 = "0.2"
-tar = "0.4"
-# for wikipedia
+# the compression binaries are required to read from the native formats
+# on-the-fly
 bzip2 = "*"
-xml-rs = "0.3"
-# for transformaing format x into plain text:
-pandoc = "0.5.1"
-json = "*"
-# for the main program
-getopts = "0.2"
+flate2 = "0.2"
+getopts = "0.2" # for the main program
+json = "*" # used for the pandoc filter
+htmlstream = "*"
 log = "0.3.6"
 log4rs = "0.5.1"
+pandoc = "0.5.1" # strip formatting
+tar = "0.4"
+xml-rs = "0.3"
+zip = "0.2"
