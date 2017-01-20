@@ -24,7 +24,7 @@ use std::path::Path;
 
 use craft::*;
 use craft::gutenberg::Gutenberg;
-use craft::input_source::InputSource;
+use craft::input_source::{GetIterator, Unformatter};
 use craft::wikipedia::Wikipedia;
 
 
@@ -149,12 +149,13 @@ macro_rules! use_or_skip(
 );
 
 // This function removes the non-text bits of a given input source.
-fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut File) {
+fn make_corpus<Source: GetIterator + Unformatter>(input: &Path,
+                  input_source: Box<Source>, result_file: &mut File) {
     let mut entities_read = 0; // keep it external to for loop to retrieve later
     let mut errorneous_articles = 0;
 
     // an entity can be either an article, a book or similar, it's the smallest unit of processing
-    for entity in input_source.get_input(input) {
+    for entity in input_source.iter(input) {
         let mut entity = use_or_skip!(entity, errorneous_articles,
             "unable to retrieve entity {} from input source", entities_read);
 

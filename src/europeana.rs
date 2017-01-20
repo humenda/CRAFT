@@ -91,12 +91,13 @@ impl Iterator for Articles {
     }
 }
 
-
-impl InputSource for Europeana {
-    fn get_input(&self, input: &Path) -> Box<Iterator<Item=Result<String>>> {
-        return Box::new(Articles::new(input))
+impl GetIterator for Europeana {
+    fn iter(&self, input: &Path) -> Box<Iterator<Item=Result<String>>> {
+        Box::new(Articles::new(input))
     }
+}
 
+impl Unformatter for Europeana {
     fn is_preprocessing_required(&self) -> bool {
         false
     }

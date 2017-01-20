@@ -60,19 +60,20 @@ impl From<json::Error> for TransformationError {
     }
 }
 
-/// Bundle all the input-specific functionality in one type
-///
-/// For the outside world, it's only important that there's so mething to iterate over (e.g. a
-/// paragraph, an article or a book) and a preprocessing function (if required) to make processing
-/// easier / to enable preprocessing in the first place.
-pub trait InputSource {
-    /// Return a chunk of text which should be processed at once.
-    ///
-    /// This is the smallest unit dispatched into the work queue and mgiht be an article, a book or
-    /// something similar.
-    fn get_input(&self, input: &Path) -> Box<Iterator<Item=Result<String>>>;
 
-    /// Reports whether preprocessing is required for this format. See prpreprocess documentation.
+
+/// Return the corresponding iterator for a given input source.
+pub trait GetIterator {
+    /// Return an iterator which can iterate over the entities of an input source.
+    fn iter(&self, &Path) -> Box<Iterator<Item=Result<String>>>;
+}
+
+/// Strip formatting from a document
+///
+/// This trait provides methods to remove formatting from input sources. It is rather specific to
+/// Pandoc, because this is used to transform concrete formats into an abstract document AST.
+pub trait Unformatter: GetIterator {
+    /// Reports whether preprocessing is required for this format.
     fn is_preprocessing_required(&self) -> bool;
 
     /// Get input format for Pandoc
@@ -89,3 +90,4 @@ pub trait InputSource {
     /// intended for the corpus.
     fn preprocess(&self, input: &str) -> Result<String>;
 }
+

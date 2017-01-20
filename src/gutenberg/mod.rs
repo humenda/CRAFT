@@ -35,13 +35,14 @@ impl Iterator for FileIterator {
 
 pub struct Gutenberg;
 
-
-impl InputSource for Gutenberg {
-    fn get_input(&self, dst: &Path) -> Box<Iterator<Item=Result<String>>> {
+impl GetIterator for Gutenberg {
+    fn iter(&self, dst: &Path) -> Box<Iterator<Item=Result<String>>> {
         let paths = fs::read_dir(dst).unwrap();
         Box::new(FileIterator { file_list: paths })
     }
+}
 
+impl Unformatter for Gutenberg {
     fn is_preprocessing_required(&self) -> bool {
         true
     }

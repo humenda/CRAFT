@@ -189,20 +189,15 @@ def recode_file(path):
             data = read(fn, 'UTF-8')
             return data # UTF-8, fine
         except UnicodeDecodeError:
-            pass # see below
-        # if we're here, try latin1 next
-        try:
-            data = read(path, 'ISO-8859-1')
-        except UnicodeDecodeError:
-            pass
+            # if we're here, try latin1 next
+            try:
+                data = read(path, 'ISO-8859-1')
+            except UnicodeDecodeError:
+                pass
         return data
     data = load_as_unicode(path)
     # strip \r
     write(path, data.replace('\r', ''))
-
-
-    # if we're here, we couldn't figure out the encoding
-    print("Warning: couldn't determine encoding of", path)
 
 
 def main(language, output_directory):

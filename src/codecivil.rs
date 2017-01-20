@@ -5,7 +5,7 @@ use std::path::Path;
 use pandoc;
 
 use common;
-use input_source::*;
+use input_source::{GetIterator, Result, Unformatter};
 
 
 
@@ -72,11 +72,13 @@ impl Iterator for Articles {
 /// files are loaded correctly.
 pub struct CodeCivil;
 
-impl InputSource for CodeCivil {
-    fn get_input(&self, input: &Path) -> Box<Iterator<Item=Result<String>>> {
-        return Box::new(Articles::new(input))
+impl GetIterator for CodeCivil {
+    fn iter(&self, input: &Path) -> Box<Iterator<Item=Result<String>>> {
+        Box::new(Articles::new(input))
     }
+}
 
+impl Unformatter for CodeCivil {
     fn is_preprocessing_required(&self) -> bool {
         false
     }
