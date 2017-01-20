@@ -136,8 +136,8 @@ fn main() {
 // With this macro, an error can be handled with in a loop, logged and the current iteration is
 // skipped.  See make_corpus to understand its usage.
 macro_rules! use_or_skip(
-    ($matchon:expr, $inc_on_error:expr, $warn_format_str:expr,
-           $($warn_args:expr),*) => (match $matchon {
+    ($matchon:expr, $inc_on_error:tt, $warn_format_str:tt,
+           $($warn_args:tt),*) => (match $matchon {
         Ok(t) => t,
         Err(e) => {
             $inc_on_error += 1;
