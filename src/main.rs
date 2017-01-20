@@ -28,6 +28,8 @@ use craft::input_source::InputSource;
 use craft::wikipedia::Wikipedia;
 
 
+
+
 fn get_usage(pname: &str, opts: Options) -> String {
     let description = "Crafted parses various input sources to produce a word corpus, which can then be \
         \nused by Word2vec. The output is written to a file called text8, which is over- \
@@ -130,59 +132,69 @@ fn main() {
     }
 }
 
+
+// With this macro, an error can be handled with in a loop, logged and the current iteration is
+// skipped.  See make_corpus to understand its usage.
+macro_rules! use_or_skip(
+    ($matchon:expr, $inc_on_error:expr, $warn_format_str:expr,
+           $($warn_args:expr),*) => (match $matchon {
+        Ok(t) => t,
+        Err(e) => {
+            $inc_on_error += 1;
+            warn!($warn_format_str, $($warn_args),*);
+            debug!("error [ignored]: {:?}", e);
+            continue;
+        }
+    })
+);
+
+// This function removes the non-text bits of a given input source.
 fn make_corpus(input: &Path, input_source: Box<InputSource>, result_file: &mut File) {
-                let mut articles_read = 0; // keep it external to for loop to retrieve later
+    let mut entities_read = 0; // keep it external to for loop to retrieve later
     let mut errorneous_articles = 0;
 
-    for article in input_source.get_input(input) {
-        let mut article = match article {
-            Ok(a) => a,
-            Err(e) => {
-                errorneous_articles += 1;
-                debug!("got errorneous article: {:?}", e);
-                continue;
-            }
-        };
+    // an entity can be either an article, a book or similar, it's the smallest unit of processing
+    for entity in input_source.get_input(input) {
+        let mut entity = use_or_skip!(entity, errorneous_articles,
+            "unable to retrieve entity {} from input source", entities_read);
+
+        // preprocessing might remove formatting which Pandoc cannot handle
         if input_source.is_preprocessing_required() {
-            article = match input_source.preprocess(&article) {
-                // ToDo: put that into some kind of log file
-                Err(_) => {
-                    errorneous_articles += 1;
-                    continue;
-                },
-                Ok(x) => x,
-            };
+            entity = use_or_skip!(input_source.preprocess(&entity),
+                errorneous_articles, "unable to preprocess entity {}",
+                entities_read);
         }
 
-        let json_ast = match textfilter::call_pandoc(input_source.get_input_format(),
-                    article) {
-            Ok(t) => t,
-            Err(e) => {
-                errorneous_articles += 1;
-                warn!("entity {} culdn't be parsed with pandoc", articles_read);
-                debug!("error: {:?}", e);
-                continue;
-            }
-        };
-        article = textfilter::stringify_text(json_ast);
+        // retrieve a JSON representation of the document AST
+        let json_ast = use_or_skip!(
+                textfilter::call_pandoc(input_source.get_input_format(), entity),
+                errorneous_articles,
+                "entity {} couldn't be parsed by pandoc", entities_read);
 
-        let mut stripped_words = textfilter::text2words(article);
+        // parse the text-only bits from the document
+        entity = use_or_skip!(textfilter::stringify_text(json_ast), errorneous_articles,
+            "unable to extract plain text from Pandoc document AST for entity {}", entities_read);
+
+        // strip white space, punctuation, non-character word-alike sequences, etc; keep only
+        // single-space separated words (exception are line breaks for context conservation, see
+        // appropriate module documentation)
+        let mut stripped_words = textfilter::text2words(entity);
         stripped_words.push('\n');
         if let Err(msg) = result_file.write_all(stripped_words.as_bytes()) {
             error!("could not write to output file: {}", msg);
             error_exit("Exiting", 23);
         }
-        articles_read += 1;
+        entities_read += 1;
 
         
-        if (articles_read % 500) == 0 {
+        if (entities_read % 500) == 0 {
             info!("{} articles parsed, {} errorneous articles skipped.",
-                articles_read, errorneous_articles);
+                entities_read, errorneous_articles);
         }
     }
 
     info!("{} articles read, {} were errorneous (and could not be included)",
-        articles_read, errorneous_articles);
+        entities_read, errorneous_articles);
 }
 
 

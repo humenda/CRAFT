@@ -77,7 +77,7 @@ fn test_newline_markers_keep_newline() {
 // test the JSON AST filter
 
 fn call_filter(js_str: String) -> String {
-    textfilter::stringify_text(js_str)
+    textfilter::stringify_text(js_str).unwrap()
 }
 
 ////////////////////////////////////////////////////////////////////////////////

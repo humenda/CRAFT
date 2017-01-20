@@ -2,7 +2,6 @@ use json;
 use std::error::Error;
 use std::io;
 use std::path::Path;
-
 use pandoc;
 
 pub type Result<T> = ::std::result::Result<T, TransformationError>;

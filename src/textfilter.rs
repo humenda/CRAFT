@@ -62,8 +62,7 @@ fn handle_pandoc_entities(output: &mut String, entity: &mut object::Object) {
 
         // use take_string to extract the string of this element
         "Str" => if let Some(x) = entity.get_mut("c") {
-            // ToDo: shorter?
-            output.push_str(x.take_string().unwrap().clone().as_ref());
+            output.push_str(&x.take_string().unwrap());
         },
 
         // handle heading; third element  contains content
@@ -189,17 +188,18 @@ fn recurse_json_tree(output: &mut String, jsval: &mut JsonValue) {
 /// is inserted (surrounded by a space). This way, further post-processing functions can
 /// distinguish between semantically important line breaks and those which are not relevant. The
 /// [module documentation](index.html) gives more detail about the "importance" of line breaks.
-pub fn stringify_text(pandoc_dump: String) -> String {
-    let ast = json::parse(&pandoc_dump).unwrap();
+pub fn stringify_text(pandoc_dump: String) -> Result<String> {
+    let ast = json::parse(&pandoc_dump)?;
     let mut output = String::new();
     match ast {
         JsonValue::Array(mut values) => if values.len() == 2 {
             recurse_json_tree(&mut output, &mut values[1]);
         },
-        _ => panic!("expected JSON document with an Array at top level object \
-                    and two entries: unmeta and the contents of the parsed document.")
+        _ => return Err(TransformationError::ErrorneousStructure(
+            "expected JSON document with an Array as top level object and \
+            two entries: unmeta and the contents of the parsed document.".into(), None)),
     };
-    output
+    Ok(output)
 }
 
 
