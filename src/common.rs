@@ -33,6 +33,32 @@ pub fn read_file(path: &path::Path) -> Result<String> {
     Ok(content)
 }
 
+// recursively gather all files in a given directory with a given file extension
+pub fn recurse_files(files_read: &mut Vec<String>, directory: &path::Path,
+                     required_extension: &str) {
+    let paths = fs::read_dir(directory).unwrap();
+    for path in paths {
+        if path.is_err() {
+            warn!("couldn't list contents of {:?}", path);
+            continue;
+        }
+        let path = path.unwrap().path();
+        if path.is_dir() {
+            recurse_files(files_read, &path, required_extension)
+        } else { // is a file
+            if let Some(fname) = path.to_str().clone() {
+                if fname.ends_with(required_extension) {
+                    let mut absolute_path = ::std::env::current_dir().unwrap();
+                    absolute_path.push(fname);
+                    files_read.push(String::from(absolute_path.to_str().unwrap()));
+                }
+            } else { // error while converting path to str
+                warn!("could not decode file name of {:?}", path);
+            }
+        }
+    }
+}
+
 /// Extract links from given HTML document
 ///
 /// This function parses the given document for `<a/>` tags and saves all their href attributes, so
@@ -48,6 +74,46 @@ pub fn extract_links(document: &str) -> Vec<String> {
     }
     links
 }
+
+/// Emit all files of a directory which match a given ending
+pub struct Files {
+    file_list: fs::ReadDir,
+    requested_file_ending: String
+}
+
+impl Files {
+    /// Return a new file iterator.
+    pub fn new(path: &path::Path, ending: &str) -> Result<Files> {
+        Ok(Files {
+            file_list: path.read_dir()?,
+            requested_file_ending: ending.into()
+        })
+    }
+}
+
+impl Iterator for Files {
+    type Item = Result<String>;
+
+    fn next(&mut self) -> Option<Result<String>> {
+        while let Some(file) = self.file_list.next() {
+            match file {
+                Ok(e) => {
+                    let fname = e.file_name();
+                    let fname = get!(fname.to_str());
+                    if fname.ends_with(&self.requested_file_ending)  {
+                        return match read_file(&e.path()) {
+                            Ok(x) => return Some(Ok(x)),
+                            Err(e) => Some(Err(e)),
+                        }
+                    }
+                },
+                Err(e) => return Some(Err(TransformationError::IoError(e, None))),
+            }
+        }
+        None
+    }
+}
+
 
 
 #[cfg(test)]

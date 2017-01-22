@@ -5,40 +5,11 @@ use super::common;
 
 use pandoc;
 
-pub struct FileIterator {
-    file_list: fs::ReadDir
-}
-
-impl Iterator for FileIterator {
-    type Item = Result<String>;
-
-    fn next(&mut self) -> Option<Result<String>> {
-        while let Some(file) = self.file_list.next() {
-            match file {
-                Ok(e) => {
-                    let fname = e.file_name();
-                    let fname = get!(fname.to_str());
-                    if fname.ends_with(".txt")  {
-                        return match common::read_file(&e.path()) {
-                            Ok(x) => return Some(Ok(x)),
-                            _ => None
-                        }
-                    }
-                },
-                // ToDo: why does automatic coercion not work
-                Err(e) => return Some(Err(TransformationError::IoError(e, None))),
-            }
-        }
-        None
-    }
-}
-
 pub struct Gutenberg;
 
 impl GetIterator for Gutenberg {
     fn iter(&self, dst: &Path) -> Box<Iterator<Item=Result<String>>> {
-        let paths = fs::read_dir(dst).unwrap();
-        Box::new(FileIterator { file_list: paths })
+        Box::new(common::Files::new(dst, ".txt").unwrap())
     }
 }
 
