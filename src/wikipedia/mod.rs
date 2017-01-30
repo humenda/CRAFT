@@ -1,7 +1,7 @@
 mod articles;
 mod preprocessor;
 
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 
 pub use self::articles::*;
 pub use self::preprocessor::*;

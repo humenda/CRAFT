@@ -1,12 +1,11 @@
 use pandoc;
-use std::convert::From;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use xml::reader::{EventReader, XmlEvent};
-use zip::read::{ZipArchive, ZipFile};
+use zip::read::{ZipArchive};
 
 use common;
-use input_source::{GetIterator, TransformationError, Result, Unformatter};
+use input_source::{GetIterator, Result, Unformatter};
 
 // maximum buffer size of a String buffer parsed from XML
 static MAX_BUFFER_SIZE: usize = 1048576; // 1M
@@ -61,7 +60,7 @@ impl DgtFiles {
         // increment before returning for next iteration
         self.zip_entry += 1;
         let mut zip_archive = self.zip_archive.as_mut().unwrap();
-        let mut zipfile = zip_archive.by_index(self.zip_entry - 1);
+        let zipfile = zip_archive.by_index(self.zip_entry - 1);
         if zipfile.is_err() {
             // ToDo: return error
             return None;
@@ -80,10 +79,13 @@ impl DgtFiles {
         while let Ok(element) = evreader.next() {
             match element {
                 XmlEvent::StartElement { name, attributes, .. } =>
-                    if let Some(_ign) = attributes.iter().find(|attr|
+                    // only <tuv lang="`self.requested_language`"> should match:
+                    if name.local_name == "tuv" {
+                        if let Some(_ign) = attributes.iter().find(|attr|
                             attr.name.local_name == "lang" &&
                             attr.value == requested_language) {
-                        requested_language_found = true;
+                            requested_language_found = true;
+                    }
                 },
                 XmlEvent::EndElement { name } =>
                     if name.local_name == "seg" && requested_language_found {

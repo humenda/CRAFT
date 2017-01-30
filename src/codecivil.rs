@@ -1,12 +1,10 @@
 /// This module parses the code civil in MarkDown format, as published by Steeve
 /// Morin. It has to be in a separate directory containing files ending on .md.
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use pandoc;
-use std::fs::File;
-use std::ffi::OsString;
 
 use common;
-use input_source::{GetIterator, Result, Unformatter, TransformationError};
+use input_source::{GetIterator, Result, Unformatter};
 
 
 /// Code Civil input parser

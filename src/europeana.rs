@@ -1,8 +1,6 @@
 use json;
 use json::JsonValue;
-use std::fs;
-use std::path::{Path, PathBuf};
-use pandoc;
+use std::path::{Path};
 
 use common;
 use input_source::*;

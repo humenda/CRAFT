@@ -3,7 +3,7 @@
 use htmlstream;
 use std::ffi::OsString;
 use std::fs;
-use std::io::{Read, Seek};
+use std::io::{Read};
 use std::path;
 
 use super::input_source::*;
@@ -47,7 +47,7 @@ pub fn recurse_files(files_read: &mut Vec<String>, directory: &path::Path,
             recurse_files(files_read, &path, required_extension)
         } else { // is a file
             if path.extension().unwrap() == required_extension {
-                let mut absolute_path = ::std::fs::canonicalize(path).unwrap();
+                let absolute_path = ::std::fs::canonicalize(path).unwrap();
                 files_read.push(absolute_path.to_str().unwrap().into());
             } else { // error while converting path to str
                 warn!("could not decode file name of {:?}", path);
