@@ -23,9 +23,7 @@ use std::io::Write;
 use std::path::Path;
 
 use craft::*;
-use craft::gutenberg::Gutenberg;
 use craft::input_source::{GetIterator, Unformatter};
-use craft::wikipedia::Wikipedia;
 
 
 
@@ -47,6 +45,9 @@ fn parse_cmd(program: &str, args: &[String])
 
     opts.optopt("e", "europeana", "activate europeana extractor for parsing news paper dumps",
                 "DIRECTORY");
+    opts.optopt("d", "eu-dgta", "activate EU-DGT (translation memory) \
+                parser for the data of the EU DGT data in zip format",
+                "DIRECTORY");
     opts.optopt("g", "gutenberg", "activate the Gutenberg corpus extractor \
                 and read Gutenberg books from the specified path", "DIRECTORY");
     opts.optflag("h", "help", "print this help");
@@ -67,8 +68,9 @@ fn parse_cmd(program: &str, args: &[String])
         ::std::process::exit(0);
     }
     if !matched.opt_present("w") && !matched.opt_present("g") && !matched.opt_present("e") &&
-        !matched.opt_present("c") && !matched.opt_present("h") {
-            return Err(format!("At least one output generator needs to be given.\n{}",
+        !matched.opt_present("c") && !matched.opt_present("d") &&
+        !matched.opt_present("h") {
+        return Err(format!("At least one output generator needs to be given.\n{}",
                            get_usage(program, opts)));
     }
 
@@ -117,26 +119,32 @@ fn main() {
         if let Some(wp_path) = opts.opt_str("w") {
             let input_path = Path::new(&wp_path);
             info!("extracting Wikipedia articles from {}", input_path.to_str().unwrap());
-            let wikipedia = Box::new(Wikipedia); // ToDo
+            let wikipedia = Box::new(wikipedia::Wikipedia);
             plain_text_with_pandoc(input_path, wikipedia, &mut result_file);
         }
         if let Some(gb_path) = opts.opt_str("g") {
             let input_path = Path::new(&gb_path);
             info!("Extracting Gutenberg books from {}", input_path.to_str().unwrap());
-            let gutenberg = Box::new(Gutenberg);
+            let gutenberg = Box::new(gutenberg::Gutenberg);
             plain_text_with_pandoc(input_path, gutenberg, &mut result_file);
         }
         if let Some(europeana_path) = opts.opt_str("e") {
             let input_path = Path::new(&europeana_path);
             info!("Extracting news paper articles from {}", input_path.to_str().unwrap());
             let europeana = Box::new(europeana::Europeana);
-            plain_text(input_path, europeana, &mut result_file, language);
+            plain_text(input_path, europeana, &mut result_file, &language);
         }
         if let Some(cc_path) = opts.opt_str("c") {
             let input_path = Path::new(&cc_path);
             info!("Extracting the code civil from {}", input_path.to_str().unwrap());
             let codecivil = Box::new(codecivil::CodeCivil);
             plain_text_with_pandoc(input_path, codecivil, &mut result_file);
+        }
+        if let Some(dgt_path) = opts.opt_str("d") {
+            info!("extracting EU-DGT notes from {}", dgt_path);
+            let input_path = Path::new(&dgt_path);
+            let dgt = Box::new(dgt::Dgt);
+            plain_text(input_path, dgt, &mut result_file, &language);
         }
     }
 }
@@ -217,12 +225,12 @@ fn plain_text_with_pandoc<Source: GetIterator + Unformatter>(input: &Path,
 /// This function utilises punctuation removing rules to get only plain text out of a document with
 /// no formatting.
 fn plain_text<Source: GetIterator>(input: &Path, input_source: Box<Source>,
-           result_file: &mut File, language: String) {
+           result_file: &mut File, language: &String) {
     let mut entities_read = 0; // keep it external to for loop to retrieve later
     let mut errorneous_articles = 0;
 
     // an entity can be either an article, a book or similar, it's the smallest unit of processing
-    for entity in input_source.iter(input, Some(language)) {
+    for entity in input_source.iter(input, Some(language.clone())) {
         let entity = use_or_skip!(entity, errorneous_articles,
             "unable to retrieve entity {} from input source", entities_read);
 

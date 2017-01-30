@@ -8,6 +8,7 @@ use std::path;
 
 use super::input_source::*;
 
+/// as try!, but with options
 macro_rules! get(
     ($e:expr) => (match $e {
         Some(e) => e,
@@ -15,7 +16,17 @@ macro_rules! get(
     })
 );
 
-/// Return the contents of a file
+/// try! which works which returns a Option<Result<T>>
+macro_rules! trysome(
+    ($e:expr) => (
+        match $e {
+            Ok(d) => d,
+            Err(e) => return Some(Err(From::from(e))),
+        }
+    )
+);
+
+
 /// Return the contents of a file
 pub fn read_file(path: &path::Path) -> Result<String> {
     let f = fs::File::open(path);
