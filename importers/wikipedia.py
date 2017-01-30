@@ -37,6 +37,7 @@ def main():
     url = DOWNLOAD_LOCATION.format(language)
     output_file = os.path.join(output_directory, url.split('/')[-1])
 
+    # similar to common.download_to, but overwrites _always_
     with urllib.request.urlopen(url) as u:
         size = int(u.info().get('Content-Length'))
         print('Downloading %.1f MB from %s' % (size / 1024 / 1024, url))

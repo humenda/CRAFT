@@ -201,8 +201,7 @@ fn plain_text_with_pandoc<Source: GetIterator + Unformatter>(input: &Path,
         // strip white space, punctuation, non-character word-alike sequences, etc; keep only
         // single-space separated words (exception are line breaks for context conservation, see
         // appropriate module documentation)
-        let mut stripped_words = textfilter::text2words(entity);
-        stripped_words.push('\n');
+        let stripped_words = textfilter::text2words(entity);
         if let Err(msg) = result_file.write_all(stripped_words.as_bytes()) {
             error!("could not write to output file: {}", msg);
             error_exit("Exiting", 23);
@@ -237,8 +236,7 @@ fn plain_text<Source: GetIterator>(input: &Path, input_source: Box<Source>,
         // strip white space, punctuation, non-character word-alike sequences, etc; keep only
         // single-space separated words (exception are line breaks for context conservation, see
         // appropriate module documentation)
-        let mut stripped_words = textfilter::text2words(entity);
-        stripped_words.push('\n');
+        let stripped_words = textfilter::text2words(entity);
         if let Err(msg) = result_file.write_all(stripped_words.as_bytes()) {
             error!("could not write to output file: {}", msg);
             error_exit("Exiting", 23);

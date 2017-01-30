@@ -113,7 +113,12 @@ impl DgtFiles {
             };
         };
         match text.is_empty() {
-            false => Some(Ok(text)),
+            false => {
+                if !text.ends_with("\n") {
+                    text.push('\n'); // maintain word2vec "context" by adding newline
+                }
+                Some(Ok(text))
+            },
             true => None
         }
     }
@@ -142,5 +147,4 @@ impl GetIterator for Dgt {
         })
     }
 }
-
 

@@ -313,6 +313,10 @@ pub fn text2words(input: String) -> String {
             }
         }
     }
+
+    if !words.ends_with('\n') {
+        words.push('\n')
+    }
     words
 }
 
