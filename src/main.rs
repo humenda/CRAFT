@@ -38,7 +38,9 @@ fn get_usage(pname: &str, opts: Options) -> String {
     opts.usage(&usage)
 }
 
-fn parse_cmd(program: &str, args: &[String]) -> Result<getopts::Matches, String> {
+/// Parse cmd options, return matches and input language
+fn parse_cmd(program: &str, args: &[String])
+        -> Result<(getopts::Matches, String), String> {
     let mut opts = Options::new();
     opts.optopt("c", "codecivil", "activate code civil extractor, parsing \
                 French laws from MarkDown files", "DIRECTORY");
@@ -56,7 +58,7 @@ fn parse_cmd(program: &str, args: &[String]) -> Result<getopts::Matches, String>
 
     let matched = opts.parse(args);
     if matched.is_err() {
-        return matched.map_err(|f| format!("{}\n{}", f.to_string(),
+        return Err(format!("{}\n{}", matched.err().unwrap(),
                 get_usage(program, opts)));
     }
     let matched = matched.unwrap();
@@ -70,7 +72,14 @@ fn parse_cmd(program: &str, args: &[String]) -> Result<getopts::Matches, String>
                            get_usage(program, opts)));
     }
 
-    Ok(matched)
+    // get language
+    if matched.free.is_empty() {
+        return Err(format!("The language to be parsed has to be given.\n{}",
+                           get_usage(program, opts)));
+    } else {
+        let lang = matched.free[0].clone();
+        Ok((matched, lang))
+    }
 }
 
 fn error_exit(msg: &str, exit_code: i32) {
@@ -91,7 +100,7 @@ fn main() {
         error_exit(&format!("Error: {}", &opts.err().unwrap()), 1);
         return; // make compiler happy
     }
-    let opts = opts.unwrap(); // safe now
+    let (opts, language) = opts.unwrap(); // safe now
 
     setup_logging();
 
@@ -109,25 +118,25 @@ fn main() {
             let input_path = Path::new(&wp_path);
             info!("extracting Wikipedia articles from {}", input_path.to_str().unwrap());
             let wikipedia = Box::new(Wikipedia); // ToDo
-            make_corpus(input_path, wikipedia, &mut result_file);
+            plain_text_with_pandoc(input_path, wikipedia, &mut result_file);
         }
         if let Some(gb_path) = opts.opt_str("g") {
             let input_path = Path::new(&gb_path);
             info!("Extracting Gutenberg books from {}", input_path.to_str().unwrap());
             let gutenberg = Box::new(Gutenberg);
-            make_corpus(input_path, gutenberg, &mut result_file);
+            plain_text_with_pandoc(input_path, gutenberg, &mut result_file);
         }
         if let Some(europeana_path) = opts.opt_str("e") {
             let input_path = Path::new(&europeana_path);
             info!("Extracting news paper articles from {}", input_path.to_str().unwrap());
             let europeana = Box::new(europeana::Europeana);
-            make_corpus(input_path, europeana, &mut result_file);
+            plain_text(input_path, europeana, &mut result_file, language);
         }
         if let Some(cc_path) = opts.opt_str("c") {
             let input_path = Path::new(&cc_path);
             info!("Extracting the code civil from {}", input_path.to_str().unwrap());
             let codecivil = Box::new(codecivil::CodeCivil);
-            make_corpus(input_path, codecivil, &mut result_file);
+            plain_text_with_pandoc(input_path, codecivil, &mut result_file);
         }
     }
 }
@@ -148,14 +157,19 @@ macro_rules! use_or_skip(
     })
 );
 
-// This function removes the non-text bits of a given input source.
-fn make_corpus<Source: GetIterator + Unformatter>(input: &Path,
+/// Strip all formatting from a text
+///
+/// This function utilises pandoc and punctuation removing rules to get only plain text out of a
+/// formatted document.
+fn plain_text_with_pandoc<Source: GetIterator + Unformatter>(input: &Path,
                   input_source: Box<Source>, result_file: &mut File) {
     let mut entities_read = 0; // keep it external to for loop to retrieve later
     let mut errorneous_articles = 0;
 
-    // an entity can be either an article, a book or similar, it's the smallest unit of processing
-    for entity in input_source.iter(input) {
+    // an entity can be either an article, a book or similar, it's the smallest unit of processing;
+    // the second parameter to iter is the language to be parsed (this is not supported for this
+    // kind of input sources, yet)
+    for entity in input_source.iter(input, None) {
         let mut entity = use_or_skip!(entity, errorneous_articles,
             "unable to retrieve entity {} from input source", entities_read);
 
@@ -198,4 +212,39 @@ fn make_corpus<Source: GetIterator + Unformatter>(input: &Path,
         entities_read, errorneous_articles);
 }
 
+/// Strip all formatting from a text
+///
+/// This function utilises punctuation removing rules to get only plain text out of a document with
+/// no formatting.
+fn plain_text<Source: GetIterator>(input: &Path, input_source: Box<Source>,
+           result_file: &mut File, language: String) {
+    let mut entities_read = 0; // keep it external to for loop to retrieve later
+    let mut errorneous_articles = 0;
+
+    // an entity can be either an article, a book or similar, it's the smallest unit of processing
+    for entity in input_source.iter(input, Some(language)) {
+        let entity = use_or_skip!(entity, errorneous_articles,
+            "unable to retrieve entity {} from input source", entities_read);
+
+        // strip white space, punctuation, non-character word-alike sequences, etc; keep only
+        // single-space separated words (exception are line breaks for context conservation, see
+        // appropriate module documentation)
+        let mut stripped_words = textfilter::text2words(entity);
+        stripped_words.push('\n');
+        if let Err(msg) = result_file.write_all(stripped_words.as_bytes()) {
+            error!("could not write to output file: {}", msg);
+            error_exit("Exiting", 23);
+        }
+        entities_read += 1;
+
+        
+        if (entities_read % 500) == 0 {
+            info!("{} articles parsed, {} errorneous articles skipped.",
+                entities_read, errorneous_articles);
+        }
+    }
+
+    info!("{} articles read, {} were errorneous (and could not be included)",
+        entities_read, errorneous_articles);
+}
 

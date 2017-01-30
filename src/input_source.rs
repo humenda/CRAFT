@@ -1,7 +1,7 @@
 use json;
 use std::error::Error;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use pandoc;
 
 pub type Result<T> = ::std::result::Result<T, TransformationError>;
@@ -10,7 +10,7 @@ pub type Result<T> = ::std::result::Result<T, TransformationError>;
 pub enum TransformationError {
     /// Save an IO error and the path to the file where the io::Error occurred (if possible)
     IoError(io::Error, Option<String>),
-    /// STructural errors; may contain a message and an otpional path
+    /// Structural errors in the file format; may contain a message and an otpional path
     ErrorneousStructure(String, Option<String>),
     JsonError(json::Error)
 }
@@ -60,12 +60,32 @@ impl From<json::Error> for TransformationError {
     }
 }
 
+impl From<::zip::result::ZipError> for TransformationError {
+    fn from(err: ::zip::result::ZipError) -> TransformationError {
+        use ::zip::result::ZipError;
+        match err {
+            ZipError::FileNotFound => TransformationError::IoError(io::Error::new(
+                    io::ErrorKind::NotFound, "file not found"), None),
+            ZipError::Io(e) => TransformationError::IoError(e, None),
+            ZipError::InvalidArchive(ref msg) => TransformationError::ErrorneousStructure(
+                    format!("Invalid zip file: {}", msg), None),
+            ZipError::UnsupportedArchive(ref msg) => TransformationError::ErrorneousStructure(
+                    format!("Unsupported zip archive format: {}", msg), None),
+
+        }
+    }
+}
+
+
 
 
 /// Return the corresponding iterator for a given input source.
 pub trait GetIterator {
     /// Return an iterator which can iterate over the entities of an input source.
-    fn iter(&self, &Path) -> Box<Iterator<Item=Result<String>>>;
+    ///
+    /// The last parameter identifies the language to be parsed. This is usually
+    /// only considered for multi-language corpora.
+    fn iter(&self, &Path, Option<String>) -> Box<Iterator<Item=Result<String>>>;
 }
 
 /// Strip formatting from a document

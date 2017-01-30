@@ -1,5 +1,6 @@
+use std::ffi::OsString;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use super::input_source::*;
 use super::common;
 
@@ -8,8 +9,9 @@ use pandoc;
 pub struct Gutenberg;
 
 impl GetIterator for Gutenberg {
-    fn iter(&self, dst: &Path) -> Box<Iterator<Item=Result<String>>> {
-        Box::new(common::Files::new(dst, ".txt").unwrap())
+    fn iter(&self, dst: &Path, _: Option<String>) ->
+                Box<Iterator<Item=Result<String>>> {
+        common::read_files(dst.into(), ".txt".into())
     }
 }
 

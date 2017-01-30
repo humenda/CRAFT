@@ -1,8 +1,9 @@
 /// This module contains helper functions, which are often used in the backends.
 
 use htmlstream;
+use std::ffi::OsString;
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Seek};
 use std::path;
 
 use super::input_source::*;
@@ -15,16 +16,6 @@ macro_rules! get(
 );
 
 /// Return the contents of a file
-pub fn read_file_from_str(path: &str) -> Result<String> {
-    let mut content = String::new();
-    let mut f = match fs::File::open(path) {
-        Ok(f) => f,
-        Err(e) => return Err(TransformationError::IoError(e, Some(String::from(path)))),
-    };
-    try!(f.read_to_string(&mut content));
-    Ok(content)
-}
-
 /// Return the contents of a file
 pub fn read_file(path: &path::Path) -> Result<String> {
     let f = fs::File::open(path);
@@ -33,9 +24,18 @@ pub fn read_file(path: &path::Path) -> Result<String> {
     Ok(content)
 }
 
+/// Consume a reader into a String
+#[inline]
+pub fn consume_reader(input: &mut Read) -> Result<String> {
+    let mut consumed = String::new();
+    input.read_to_string(& mut consumed)?;
+    Ok(consumed)
+}
+
+
 // recursively gather all files in a given directory with a given file extension
 pub fn recurse_files(files_read: &mut Vec<String>, directory: &path::Path,
-                     required_extension: &str) {
+                     required_extension: &OsString) {
     let paths = fs::read_dir(directory).unwrap();
     for path in paths {
         if path.is_err() {
@@ -46,12 +46,9 @@ pub fn recurse_files(files_read: &mut Vec<String>, directory: &path::Path,
         if path.is_dir() {
             recurse_files(files_read, &path, required_extension)
         } else { // is a file
-            if let Some(fname) = path.to_str().clone() {
-                if fname.ends_with(required_extension) {
-                    let mut absolute_path = ::std::env::current_dir().unwrap();
-                    absolute_path.push(fname);
-                    files_read.push(String::from(absolute_path.to_str().unwrap()));
-                }
+            if path.extension().unwrap() == required_extension {
+                let mut absolute_path = ::std::fs::canonicalize(path).unwrap();
+                files_read.push(absolute_path.to_str().unwrap().into());
             } else { // error while converting path to str
                 warn!("could not decode file name of {:?}", path);
             }
@@ -75,43 +72,63 @@ pub fn extract_links(document: &str) -> Vec<String> {
     links
 }
 
-/// Emit all files of a directory which match a given ending
+
+/// Emit filtered file paths
+///
+/// This iterator allows for recursive iteration over a file tree, while
+/// automatically filtering for a required file extension.
 pub struct Files {
     file_list: fs::ReadDir,
-    requested_file_ending: String
+    requested_file_ending: OsString
 }
 
 impl Files {
     /// Return a new file iterator.
-    pub fn new(path: &path::Path, ending: &str) -> Result<Files> {
+    pub fn new<P>(path: P, extension: OsString) -> Result<Files>
+            where P: AsRef<path::Path> {
         Ok(Files {
-            file_list: path.read_dir()?,
-            requested_file_ending: ending.into()
+            file_list: fs::read_dir(path)?,
+            requested_file_ending: extension
         })
     }
 }
 
 impl Iterator for Files {
-    type Item = Result<String>;
+    type Item = Result<path::PathBuf>;
 
-    fn next(&mut self) -> Option<Result<String>> {
-        while let Some(file) = self.file_list.next() {
-            match file {
-                Ok(e) => {
-                    let fname = e.file_name();
-                    let fname = get!(fname.to_str());
-                    if fname.ends_with(&self.requested_file_ending)  {
-                        return match read_file(&e.path()) {
-                            Ok(x) => return Some(Ok(x)),
-                            Err(e) => Some(Err(e)),
-                        }
-                    }
-                },
-                Err(e) => return Some(Err(TransformationError::IoError(e, None))),
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(fpath) = self.file_list.next() {
+            let fpath = fpath.map(|x| x.path()).map_err(|x| TransformationError::IoError(x, None));
+            if fpath.is_err() {
+                return Some(fpath);
+            }
+            let fpath = fpath.unwrap();
+            if fpath.ends_with(&self.requested_file_ending) {
+                return Some(Ok(fpath))
             }
         }
         None
     }
+}
+
+
+/// Return content of a file found below given path
+///
+/// This function creates an iterator which recurses all files in a given
+/// directory with a given extension and returns its content.
+pub fn read_files(input: path::PathBuf, extension: OsString)
+            -> Box<Iterator<Item=Result<String>>> {
+    Box::new(Files::new(input, extension).unwrap().map(|x| match x {
+        Ok(fpath) => match fs::File::open(fpath) {
+            Ok(mut r) => { // read file to String
+                let mut res = String::new();
+                r.read_to_string(&mut res)?;
+                Ok(res)
+            },
+            Err(e) => Err(TransformationError::IoError(e, None)),
+        },
+        Err(e) => Err(e),
+    }))
 }
 
 

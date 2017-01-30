@@ -73,8 +73,9 @@ impl<B: Read> Iterator for ArticleParser<B> {
     }
 }
 
-pub fn parser_from_file(filename: &Path) -> ArticleParser<BzDecoder<File>> {
-    let compressed = File::open(filename.to_str().unwrap()).unwrap();
-    ArticleParser::new(BzDecoder::new(compressed))
+pub fn parser_from_file(filename: &Path) ->
+Result<ArticleParser<BzDecoder<File>>> {
+    let compressed = File::open(filename.to_str().unwrap())?;
+    Ok(ArticleParser::new(BzDecoder::new(compressed)))
 }
 
