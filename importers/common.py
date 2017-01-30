@@ -1,6 +1,7 @@
 """This module groups functions to aid the download process of data files."""
 
 from html.parser import HTMLParser
+import os
 import sys
 import urllib.request
 
@@ -41,8 +42,12 @@ def get_links(data, is_web_page=False):
     return le.links
 
 def download_to(url, target_file):
-    """Download given url to given file."""
+    """Download given url to given file. If file exists, file is not downloaded
+    again."""
     fetch_at_once = 150000
+    if os.path.exists(target_file):
+        print("Not downloading %s, already exists." % target_file)
+        return
     try:
         with urllib.request.urlopen(url) as u:
             size = int(u.info().get('Content-Length'))
