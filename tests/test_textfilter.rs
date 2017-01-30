@@ -10,74 +10,78 @@ fn art2words(input: &str) -> String {
 
 #[test]
 fn test_all_words_preserved() {
-    assert_eq!(art2words("test this"), "test this");
+    assert_eq!(art2words("test this"), "test this\n");
 }
 
 #[test]
 fn test_other_whitespace_characters_are_ignored() {
-    assert_eq!(art2words("\nok\t worked "), "ok worked");
+    assert_eq!(art2words("\nok\t worked "), "ok worked\n");
 }
 
 #[test]
 fn test_numbers_are_ignored() {
-    assert_eq!(art2words("1990 was a special date"), "was a special date");
-    assert_eq!(art2words("my 1st test"), "my test");
+    assert_eq!(art2words("1990 was a special date"), "was a special date\n");
+    assert_eq!(art2words("my 1st test"), "my test\n");
 }
 
 #[test]
 fn test_that_punctuation_is_removed_and_words_preserved() {
-    assert_eq!(art2words("However, I like it. :)"), "however i like it");
+    assert_eq!(art2words("However, I like it. :)"), "however i like it\n");
 }
 
 #[test]
-fn test_words_with_hypen_work() {
+fn test_words_with_hyphen_work() {
     assert_eq!(art2words("this is a non-alcoholic drink"), "this is a \
-                non-alcoholic drink");
+                non-alcoholic drink\n");
     // do suspended hyphens work:
-    assert_eq!(art2words("Using hard- and software"), "using hard- and software");
+    assert_eq!(art2words("Using hard- and software"), "using hard- and software\n");
 }
 
 #[test]
 fn test_parenthesis_are_removed() {
-    assert_eq!(art2words("(ignore that, ok?)"), "ignore that ok");
-    assert_eq!(art2words("[ignore that, ok?]"), "ignore that ok");
-    assert_eq!(art2words("{ignore that, ok?}"), "ignore that ok");
+    assert_eq!(art2words("(ignore that, ok?)"), "ignore that ok\n");
+    assert_eq!(art2words("[ignore that, ok?]"), "ignore that ok\n");
+    assert_eq!(art2words("{ignore that, ok?}"), "ignore that ok\n");
 }
 
 #[test]
 fn test_that_apostrophies_may_be_contained_in_word() {
-    assert_eq!(art2words("I'm not sure, O'raggley"), "i'm not sure o'raggley");
+    assert_eq!(art2words("I'm not sure, O'raggley"), "i'm not sure o'raggley\n");
 }
 
 #[test]
 fn test_semicolons_removed() {
-    assert_eq!(art2words("ab; cd"), "ab cd");
+    assert_eq!(art2words("ab; cd"), "ab cd\n");
     assert_eq!(art2words("ab;cd"), "");
 }
 
 #[test]
 fn test_words_with_only_punctuation_etc_no_alphabetical_characters_removed() {
-    assert_eq!(art2words("jo (''.) moo"), "jo moo");
+    assert_eq!(art2words("jo (''.) moo"), "jo moo\n");
 }
 
 #[test]
 fn test_that_unicode_quotes_are_removed() {
     // example from the real world
     let text = "Deutsch „die Hauptstadt“.";
-    assert_eq!(art2words(text), "deutsch die hauptstadt");
+    assert_eq!(art2words(text), "deutsch die hauptstadt\n");
 }
 
 #[test]
 fn test_newline_markers_keep_newline() {
     let text = "abc \x07 def".into();
-    assert_eq!(art2words(text), "abc\ndef");
+    assert_eq!(art2words(text), "abc\ndef\n");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // test the JSON AST filter
 
+// this function calls the JSON2text function and replaces all " \u{7}" sequuuences through \n;
+// this is partly what textfilter::text2words does, but here it's solely for easier testability
 fn call_filter(js_str: String) -> String {
-    textfilter::stringify_text(js_str).unwrap()
+    let result = textfilter::stringify_text(js_str).unwrap();
+    let result = result.replace(&format!(" {} ", textfilter::RETURN_ESCAPE_SEQUENCE), "\n");
+    result
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -88,7 +92,7 @@ fn test_that_str_is_serialized_correctly() {
     // this document contains a Str element
     let json_str: String = "[{\"unMeta\": {}},\
        [{\"t\": \"Para\", \"c\": [{\"t\": \"Str\", \"c\": \"simplestr\"}]}]]".into(); 
-    assert_eq!(call_filter(json_str), "simplestr");
+    assert_eq!(call_filter(json_str), "simplestr\n");
 }
 
 
@@ -97,7 +101,7 @@ fn test_that_emph_is_serialized_correctly() {
     // this document contains a Emph element
     let json_str: String = "[{\"unMeta\": {}},\
        [{\"t\": \"Para\", \"c\": [{\"t\": \"Emph\", \"c\": [{\"t\": \"Str\", \"c\": \"emphasized\"}]}]}]]".into();
-    assert_eq!(call_filter(json_str), "emphasized");
+    assert_eq!(call_filter(json_str), "emphasized\n");
 }
 
 
@@ -108,7 +112,7 @@ fn test_that_strong_is_serialized_correctly() {
        [{\"c\": [{\"c\": [{\"c\": \"ok\", \"t\": \"Str\"}],\
        \"t\": \"Strong\"}],\
        \"t\": \"Para\"}]]".into();
-    assert_eq!(call_filter(json_str), "ok");
+    assert_eq!(call_filter(json_str), "ok\n");
 }
 
 
@@ -123,7 +127,7 @@ fn test_that_strikeout_is_serialized_correctly() {
        {\"t\": \"Str\", \"c\": \"be\"},\
        {\"t\": \"Space\", \"c\": []},\
        {\"t\": \"Strikeout\", \"c\": [{\"t\": \"Str\", \"c\": \"deleted.\"}]}]}]]".into();
-    assert_eq!(call_filter(json_str), "let it be deleted.");
+    assert_eq!(call_filter(json_str), "let it be deleted.\n");
 }
 
 
@@ -139,7 +143,7 @@ fn test_that_superscript_is_serialized_correctly() {
        {\"t\": \"Str\", \"c\": \"pretty\"},\
        {\"t\": \"Space\", \"c\": []},\
        {\"t\": \"Str\", \"c\": \"big\"}]}]]".into();
-    assert_eq!(call_filter(json_str), "2 is pretty big");
+    assert_eq!(call_filter(json_str), "2 is pretty big\n");
 }
 
 
@@ -154,7 +158,7 @@ fn test_that_subscript_is_serialized_correctly() {
        {\"t\": \"Str\", \"c\": \"H\"},\
        {\"t\": \"Subscript\", \"c\": [{\"t\": \"Str\", \"c\": \"2\"}]},\
        {\"t\": \"Str\", \"c\": \"O\"}]}]]".into();
-    assert_eq!(call_filter(json_str), "drink enough H O");
+    assert!(call_filter(json_str).starts_with("drink enough H O"));
 }
 
 
@@ -167,7 +171,7 @@ fn test_that_smallcaps_is_serialized_correctly() {
        {\"t\": \"Str\", \"c\": \"IEEE\"},\
        {\"t\": \"Space\", \"c\": []},\
        {\"t\": \"Str\", \"c\": \"FOO\"}]}]}]]".into();
-    assert_eq!(call_filter(json_str), "UNO IEEE FOO");
+    assert_eq!(call_filter(json_str), "UNO IEEE FOO\n");
 }
 
 
@@ -185,13 +189,13 @@ fn test_that_cite_is_serialized_correctly() {
 
 #[test]
 fn test_that_code_is_serialized_correctly() {
-    // this document contains a Code element
+    // this document contains a Code, which should be ignored element
     let json_str: String = "[{\"unMeta\": {}},\
        [{\"c\": [{\"c\": \"a\", \"t\": \"Str\"},\
        {\"c\": [[\"\", [], []], \"b\"], \"t\": \"Code\"},\
        {\"c\": \"c\", \"t\": \"Str\"}],\
        \"t\": \"Para\"}]]".into();
-    assert_eq!(call_filter(json_str), "a c");
+    assert_eq!(call_filter(json_str), "a c\n");
 }
 
 
@@ -207,13 +211,13 @@ fn test_that_space_is_serialized_correctly() {
        {\"c\": [], \"t\": \"Space\"},\
        {\"c\": \"d\", \"t\": \"Str\"}],\
        \"t\": \"Para\"}]]".into();
-    assert_eq!(call_filter(json_str), "a b c d");
+    assert_eq!(call_filter(json_str), "a b c d\n");
 }
 
 
 #[test]
 fn test_that_linebreak_is_serialized_correctly() {
-    // this document contains a LineBreak element
+      // this document contains a LineBreak element, which is ignored
     let json_str: String = "[{\"unMeta\": {}},\
        [{\"c\": [{\"c\": \"here\", \"t\": \"Str\"},\
        {\"c\": [], \"t\": \"LineBreak\"},\
@@ -223,13 +227,13 @@ fn test_that_linebreak_is_serialized_correctly() {
        {\"c\": [], \"t\": \"Space\"},\
        {\"c\": \"newline\", \"t\": \"Str\"}],\
        \"t\": \"Para\"}]]".into();
-    assert_eq!(call_filter(json_str), "here is a newline");
+    assert!(call_filter(json_str).starts_with("here is a newline"));
 }
 
 
 #[test]
 fn test_that_math_is_ignored() {
-    // this document contains a Math element
+    // this document contains a maths environments, both should be ignored
     let json_str: String = "[{\"unMeta\": {}},\
        [{\"t\": \"Para\", \"c\": [{\"t\": \"Math\", \"c\": [{\"t\": \"InlineMath\", \"c\": []},\
        \"a\"]},\
@@ -238,7 +242,7 @@ fn test_that_math_is_ignored() {
        {\"t\": \"Space\", \"c\": []},\
        {\"t\": \"Math\", \"c\": [{\"t\": \"DisplayMath\", \"c\": []},\
        \"b\"]}]}]]".into();
-    assert_eq!(call_filter(json_str), "and ");
+    assert_eq!(textfilter::text2words(call_filter(json_str)), "and\n");
 }
 
 
@@ -262,7 +266,7 @@ fn test_that_only_linktext_is_kept() {
        {\"c\": \"ok\", \"t\": \"Str\"}],\
        [\"and%20this%20isn't\", \"fig:\"]], \"t\": \"Image\"}],\
        \"t\": \"Para\"}]]".into();
-    assert_eq!(call_filter(json_str), "this is ok");
+    assert_eq!(call_filter(json_str), "this is ok\n");
 }
 
 
@@ -283,7 +287,7 @@ fn test_that_image_alt_text_is_kept() {
        {\"c\": \"steak\", \"t\": \"Str\"}],\
        [\"meeeeeeeet.png\", \"fig:\"]], \"t\": \"Image\"}],\
        \"t\": \"Para\"}]]".into();
-    assert_eq!(call_filter(json_str), "an image of a beef steak");
+    assert_eq!(call_filter(json_str), "an image of a beef steak\n");
 }
 
 #[test]
@@ -297,31 +301,26 @@ fn test_that_images_with_short_descriptions_are_ignored() {
       {\"t\":\"SoftBreak\",\"c\":[]},\
       {\"t\":\"Str\",\"c\":\"cow\"}]}]]\
       ".into();
-    assert_eq!(call_filter(json_str), "bla cow");
+    assert_eq!(textfilter::text2words(call_filter(json_str)), "bla cow\n");
 }
-
-// ToDo: does this element still exist?
-//fn test_that_note_is_serialized_correctly() {
-//}
-
 
 #[test]
 fn test_that_only_text_of_span_kept() {
     // this document contains a Span element
     let json_str: String = "[{\"unMeta\": {}},\
        [{\"t\": \"Para\", \"c\": [{\"t\": \"Span\", \"c\": [[\"\", [\"foo\"], []], [{\"t\": \"Str\", \"c\": \"Orc\"}]]}]}]]".into();
-    assert_eq!(call_filter(json_str), "Orc");
+    assert!(call_filter(json_str).starts_with("Orc"));
 }
 
 #[test]
 fn test_that_softbreak_is_correctly_serialized() {
-    // this document contains a SoftBreak element
+    // this document contains a SoftBreak element, which should be ignored
     let json_str: String = "[{\"unMeta\": {}},\
        [{\"c\": [{\"c\": \"a\", \"t\": \"Str\"},\
        {\"c\": [], \"t\": \"SoftBreak\"},\
        {\"c\": \"b\", \"t\": \"Str\"}],\
        \"t\": \"Para\"}]]".into();
-    assert_eq!(call_filter(json_str), "a b");
+    assert_eq!(call_filter(json_str), "a b\n");
 }
  
 ////////////////////////////////////////////////////////////////////////////////
@@ -333,7 +332,7 @@ fn test_that_plain_is_serialized_correctly() {
     let json_str: String = "[{\"unMeta\": {}},\
        [{\"c\": [{\"c\": \"plaintext\", \"t\": \"Str\"}],\
        \"t\": \"Plain\"}]]".into();
-    assert_eq!(call_filter(json_str), "plaintext");
+    assert_eq!(call_filter(json_str), "plaintext\n");
 }
 
 
@@ -356,7 +355,7 @@ fn test_that_para_is_serialized_correctly() {
        {\"c\": [], \"t\": \"Space\"},\
        {\"c\": \"g\", \"t\": \"Str\"}],\
        \"t\": \"Para\"}]]".into();
-    assert_eq!(call_filter(json_str), "a b c d e f g");
+    assert_eq!(call_filter(json_str), "a b c d e f g\n");
 }
 
 
@@ -390,52 +389,58 @@ fn test_that_orderedlist_is_serialized_correctly() {
        \"t\": \"Plain\"}],\
        [{\"c\": [{\"c\": \"cookie\", \"t\": \"Str\"}],\
        \"t\": \"Plain\"}]]], \"t\": \"OrderedList\"}]]".into();
-    assert_eq!(call_filter(json_str), "shoe jeans cookie");
+    assert_eq!(call_filter(json_str), "shoe\njeans\ncookie\n");
 }
 
 
 #[test]
 fn test_that_bulletlist_is_serialized_correctly() {
-    // this document contains a BulletList element
+    // this document contains a BulletList element with each item forming a logical context
     let json_str: String = "[{\"unMeta\": {}},\
        [{\"t\": \"BulletList\", \"c\": [[{\"t\": \"Plain\", \"c\": [{\"t\": \"Str\", \"c\": \"first\"}]}],\
        [{\"t\": \"Plain\", \"c\": [{\"t\": \"Str\", \"c\": \"second\"}]}],\
        [{\"t\": \"Plain\", \"c\": [{\"t\": \"Str\", \"c\": \"third\"}]},\
        {\"t\": \"BulletList\", \"c\": [[{\"t\": \"Plain\", \"c\": [{\"t\": \"Str\", \"c\": \"third.one\"}]}]]}]]}]]".into();
-    assert_eq!(call_filter(json_str), "first second third third.one");
+    // each element (bullet point) is a context (in the word2vec sense), so newlines are expected
+    assert_eq!(call_filter(json_str), "first\n second\n third\n third.one\n");
 }
 
 
 #[test]
 fn test_that_definitionlist_is_serialized_correctly() {
     // this document contains a DefinitionList element
-    let json_str: String = "[{\"unMeta\": {}},\
-       [{\"t\": \"DefinitionList\", \"c\": [[[{\"t\": \"Str\", \"c\": \"headword\"}],\
-       [[{\"t\": \"Plain\", \"c\": [{\"t\": \"Str\", \"c\": \"definition\"},\
-       {\"t\": \"SoftBreak\", \"c\": []},\
-       {\"t\": \"Str\", \"c\": \"another\"}]}],\
-       [{\"t\": \"Plain\", \"c\": [{\"t\": \"Str\", \"c\": \"definition\"}]}]]]]}]]".into();
-    assert_eq!(call_filter(json_str), "headword definition another definition");
+    let json_str: String = "[{\"unMeta\":{}},\
+      [{\"t\":\"DefinitionList\",\"c\":[[[{\"t\":\"Str\",\"c\":\"headword\"}],\
+      [[{\"t\":\"Plain\",\"c\":[{\"t\":\"Str\",\"c\":\"definition\"},\
+      {\"t\":\"SoftBreak\",\"c\":[]},\
+      {\"t\":\"Str\",\"c\":\"another\"},\
+      {\"t\":\"Space\",\"c\":[]},\
+      {\"t\":\"Str\",\"c\":\"headword\"}]}],\
+      [{\"t\":\"Plain\",\"c\":[{\"t\":\"Str\",\"c\":\"another\"},\
+      {\"t\":\"Space\",\"c\":[]},\
+      {\"t\":\"Str\",\"c\":\"definition\"}]}]]]]}]]\
+      ".into();
+    assert_eq!(call_filter(json_str), "headword\ndefinition\nanother headword\nanother definition\n");
 }
 
 
 #[test]
 fn test_that_header_is_serialized_correctly() {
-    // this document contains a Header element
-    let json_str: String = "[{\"unMeta\": {}},\
-       [{\"c\": [1, [\"h1\", [], []], [{\"c\": \"h1\", \"t\": \"Str\"}]], \"t\": \"Header\"},\
-       {\"c\": [2, [\"h2\", [], []], [{\"c\": \"h2\", \"t\": \"Str\"}]], \"t\": \"Header\"}]]".into();
-    assert_eq!(call_filter(json_str), "h1 h2");
+    // this document contains a Header element (a heading)
+    let json_str: String = r#"[{"unMeta": {}},
+       [{"c": [1, ["h1", [], []], [{"c": "h1", "t": "Str"}]], "t": "Header"},
+       {"c": [2, ["h2", [], []], [{"c": "h2", "t": "Str"}]], "t": "Header"}]]"#.into();
+    assert_eq!(call_filter(json_str), "h1\nh2\n");
 }
 
 
 #[test]
 fn test_that_only_text_in_div_kept() {
-    // this document contains a Div element
+    // this document contains a Div element, only the content of the div should be kept
     let json_str: String = "[{\"unMeta\": {}},\
        [{\"c\": [[\"\", [\"foobar\"], [[\"style\", \"ignored\"]]], [{\"c\": [{\"c\": \"content\", \"t\": \"Str\"}],\
        \"t\": \"Plain\"}]], \"t\": \"Div\"}]]".into();
-    assert_eq!(call_filter(json_str), "content");
+    assert_eq!(call_filter(json_str), "content\n");
 }
  
 
@@ -448,7 +453,9 @@ fn test_that_codeblock_is_ignored_in_output() {
        {\"c\": [[\"\", [], []], \"a\\nb\\nc\"], \"t\": \"CodeBlock\"},\
        {\"c\": [{\"c\": \"end\", \"t\": \"Str\"}],\
        \"t\": \"Para\"}]]".into();
-    assert_eq!(call_filter(json_str), "a end");
+    let result_copy = json_str.clone();
+    assert!(call_filter(json_str).starts_with("a end"),
+        format!("expected something starting with \"a end\", got \"{}\"", result_copy));
 }
 
 
@@ -465,7 +472,8 @@ fn test_that_table_is_ignored_in_output() {
        \"t\": \"Plain\"}],\
        [{\"c\": [{\"c\": \"col1\", \"t\": \"Str\"}],\
        \"t\": \"Plain\"}]]]], \"t\": \"Table\"}]]".into();
-    assert_eq!(call_filter(json_str), "");
+       // filter this to get empty string
+    assert_eq!(textfilter::text2words(call_filter(json_str)), "");
 }
 
 
@@ -476,7 +484,7 @@ fn test_that_horizontalrule_is_ignored_in_output() {
        [{\"t\": \"Para\", \"c\": [{\"t\": \"Str\", \"c\": \"a\"}]},\
        {\"t\": \"HorizontalRule\", \"c\": []},\
        {\"t\": \"Para\", \"c\": [{\"t\": \"Str\", \"c\": \"b\"}]}]]".into();
-    assert_eq!(call_filter(json_str), "a b");
+    assert!(call_filter(json_str).starts_with("a b\n"));
 }
 
 

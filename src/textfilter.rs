@@ -43,9 +43,9 @@ fn handle_pandoc_entities(output: &mut String, entity: &mut object::Object) {
     // (e.g. paragraphs); these are escaped with RETURN_ESCAPE_SEQUENCE and have to be surrounded
     // by spaces:
     let add_newline = |o: &mut String| {
-        // add newline if there has been text inserted aaand previous text chunk is no newline
-        // indicator; new line indicators are always " \x07 ", so the last char can be skipped
-        if o.len() > 1 && o.chars().last().unwrap() == RETURN_ESCAPE_SEQUENCE {
+        // add newline _if_ there has been text inserted and previous text[-2] !=
+        // RETURN_ESCAPE_SEQUENCE; newline is identified through an escape sequence
+        if o.len() > 1 && o.chars().rev().skip(1).next().unwrap() != RETURN_ESCAPE_SEQUENCE {
             o.push(' ');
             o.push(RETURN_ESCAPE_SEQUENCE);
             o.push(' ');
@@ -289,12 +289,13 @@ fn remove_punctuation(input: &mut String) {
 /// This function Strips punctuation, parenthesis, numbers and useless white space., basically only
 /// keeping words separated by a single space. An exception is the char RETURN_ESCAPE_SEQUENCE
 /// (surrounded by a space), which will enforce a line break.
+/// The returned String ends on `\n`, unless empty.
 pub fn text2words(input: String) -> String {
     let mut words = String::new();
 
     for word in input.split_whitespace() {
-        // newline indicators are " \x07 ", so length 3 and word[1] === RETURN_ESCAPE_SEQUENCE:
-        if word.len() == 1 && word.chars().next() == Some(RETURN_ESCAPE_SEQUENCE) {
+        // according to fn doc, escape sequence has length of 1, check whether newline requested:
+        if word.len() == 1 && word.starts_with(RETURN_ESCAPE_SEQUENCE) {
             words.push('\n');
         } else {
             // remove punctuation, then  enclosing characters (quotations or parenthesis) and then
@@ -314,7 +315,7 @@ pub fn text2words(input: String) -> String {
         }
     }
 
-    if !words.ends_with('\n') {
+    if !words.is_empty() && !words.ends_with('\n') {
         words.push('\n')
     }
     words
