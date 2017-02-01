@@ -50,6 +50,8 @@ fn parse_cmd(program: &str, args: &[String])
                 "DIRECTORY");
     opts.optopt("g", "gutenberg", "activate the Gutenberg corpus extractor \
                 and read Gutenberg books from the specified path", "DIRECTORY");
+    opts.optopt("l", "logging_conf", "set output file name for the logging \
+                configuration (default log4rs.yaml)", "FILENAME");
     opts.optflag("h", "help", "print this help");
     // ToDo: unused
     opts.optopt("o", "", "set output file name", "NAME");
@@ -89,8 +91,11 @@ fn error_exit(msg: &str, exit_code: i32) {
     ::std::process::exit(exit_code);
 }
 
-fn setup_logging() {
-    log4rs::init_file("log4rs.yaml", Default::default()).expect("could not open log file for writing!");
+fn setup_logging(log_conf: &str) {
+    if let Err(e) = log4rs::init_file(log_conf, Default::default()) {
+        warn!("Error while opening logging configuration {} for reading:\n      {}\
+                \n    Logging to stdout instead", log_conf, e);
+    }
 }
 
 
@@ -104,7 +109,10 @@ fn main() {
     }
     let (opts, language) = opts.unwrap(); // safe now
 
-    setup_logging();
+    match opts.opt_present("l") {
+        true => setup_logging(&opts.opt_str("l").unwrap()),
+        false => setup_logging("log4rs.yaml"),
+    }
 
     let output_name = opts.opt_str("o").unwrap_or("text8".into());
     let file_creation_result = File::create(&output_name);
@@ -150,16 +158,16 @@ fn main() {
 }
 
 
-// With this macro, an error can be handled with in a loop, logged and the current iteration is
-// skipped.  See make_corpus to understand its usage.
+// This macro matches on a result; if `Ok()`, take it, else log the error output and increment the
+// given error counter.
 macro_rules! use_or_skip(
     ($matchon:expr, $inc_on_error:tt, $warn_format_str:tt,
            $($warn_args:tt),*) => (match $matchon {
         Ok(t) => t,
         Err(e) => {
-            $inc_on_error += 1;
-            warn!($warn_format_str, $($warn_args),*);
-            debug!("error [ignored]: {:?}", e);
+            // print custom error message and include error in the logs, too
+            debug!(concat!($warn_format_str, "\n    Error: {}"),
+                $($warn_args),*, e);
             continue;
         }
     })
