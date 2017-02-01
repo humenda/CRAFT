@@ -339,7 +339,7 @@ fn test_that_plain_is_serialized_correctly() {
 // this is actually redundant, but here it goes
 #[test]
 fn test_that_para_is_serialized_correctly() {
-    // this document contains a Para element
+    // this document contains two paragraphs, a line break between both is expected
     let json_str: String = "[{\"unMeta\": {}},\
        [{\"c\": [{\"c\": \"a\", \"t\": \"Str\"},\
        {\"c\": [], \"t\": \"Space\"},\
@@ -355,7 +355,7 @@ fn test_that_para_is_serialized_correctly() {
        {\"c\": [], \"t\": \"Space\"},\
        {\"c\": \"g\", \"t\": \"Str\"}],\
        \"t\": \"Para\"}]]".into();
-    assert_eq!(call_filter(json_str), "a b c d e f g\n");
+    assert_eq!(call_filter(json_str), "a b c d\ne f g\n");
 }
 
 
@@ -402,25 +402,24 @@ fn test_that_bulletlist_is_serialized_correctly() {
        [{\"t\": \"Plain\", \"c\": [{\"t\": \"Str\", \"c\": \"third\"}]},\
        {\"t\": \"BulletList\", \"c\": [[{\"t\": \"Plain\", \"c\": [{\"t\": \"Str\", \"c\": \"third.one\"}]}]]}]]}]]".into();
     // each element (bullet point) is a context (in the word2vec sense), so newlines are expected
-    assert_eq!(call_filter(json_str), "first\n second\n third\n third.one\n");
+    assert_eq!(call_filter(json_str), "first\nsecond\nthird\nthird.one\n");
 }
 
 
 #[test]
 fn test_that_definitionlist_is_serialized_correctly() {
-    // this document contains a DefinitionList element
-    let json_str: String = "[{\"unMeta\":{}},\
-      [{\"t\":\"DefinitionList\",\"c\":[[[{\"t\":\"Str\",\"c\":\"headword\"}],\
-      [[{\"t\":\"Plain\",\"c\":[{\"t\":\"Str\",\"c\":\"definition\"},\
-      {\"t\":\"SoftBreak\",\"c\":[]},\
-      {\"t\":\"Str\",\"c\":\"another\"},\
-      {\"t\":\"Space\",\"c\":[]},\
-      {\"t\":\"Str\",\"c\":\"headword\"}]}],\
-      [{\"t\":\"Plain\",\"c\":[{\"t\":\"Str\",\"c\":\"another\"},\
-      {\"t\":\"Space\",\"c\":[]},\
-      {\"t\":\"Str\",\"c\":\"definition\"}]}]]]]}]]\
-      ".into();
-    assert_eq!(call_filter(json_str), "headword\ndefinition\nanother headword\nanother definition\n");
+    // this document contains a DefinitionList element; it's a definition list with two headwords
+    // and two definitions
+    let json_str: String = r#"[{"unMeta":{}},
+      [{"t":"DefinitionList","c":[[[{"t":"Str","c":"triangle"}],
+      [[{"t":"Plain","c":[{"t":"Str","c":"three"},
+      {"t":"Space","c":[]},
+      {"t":"Str","c":"edges"}]}]]],[[{"t":"Str","c":"square"}],
+      [[{"t":"Plain","c":[{"t":"Str","c":"four"},
+      {"t":"Space","c":[]},
+      {"t":"Str","c":"edges"}]}]]]]}]]
+      "#.into();
+    assert_eq!(call_filter(json_str), "triangle three edges\nsquare four edges\n");
 }
 
 
