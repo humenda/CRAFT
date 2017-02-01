@@ -166,6 +166,7 @@ macro_rules! use_or_skip(
         Ok(t) => t,
         Err(e) => {
             // print custom error message and include error in the logs, too
+            $inc_on_error += 1;
             debug!(concat!($warn_format_str, "\n    Error: {}"),
                 $($warn_args),*, e);
             continue;
