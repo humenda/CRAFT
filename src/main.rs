@@ -26,8 +26,7 @@ use craft::*;
 use craft::input_source::{GetIterator, Unformatter};
 
 
-
-
+// get program usage
 fn get_usage(pname: &str, opts: Options) -> String {
     let description = "Crafted parses various input sources to produce a word corpus, which can then be \
         \nused by Word2vec. The output is written to a file called text8, which is over- \
@@ -93,6 +92,7 @@ fn error_exit(msg: &str, exit_code: i32) {
 
 fn setup_logging(log_conf: &str) {
     if let Err(e) = log4rs::init_file(log_conf, Default::default()) {
+        // ToDo: doesn't work, manual setup required
         warn!("Error while opening logging configuration {} for reading:\n      {}\
                 \n    Logging to stdout instead", log_conf, e);
     }
@@ -189,27 +189,32 @@ fn plain_text_with_pandoc<Source: GetIterator + Unformatter>(input: &Path,
     for entity in input_source.iter(input, None) {
         let mut entity = use_or_skip!(entity, errorneous_articles,
             "unable to retrieve entity {} from input source", entities_read);
+        debug!("Starting to process entity {} with length {}", entities_read, entity.len());
 
         // preprocessing might remove formatting which Pandoc cannot handle
         if input_source.is_preprocessing_required() {
+            debug!("Preprocessing entity {}", entities_read);
             entity = use_or_skip!(input_source.preprocess(&entity),
                 errorneous_articles, "unable to preprocess entity {}",
                 entities_read);
         }
 
         // retrieve a JSON representation of the document AST
+        debug!("Calling pandoc to get JSON AST for {}", entities_read);
         let json_ast = use_or_skip!(
                 textfilter::call_pandoc(input_source.get_input_format(), entity),
                 errorneous_articles,
                 "entity {} couldn't be parsed by pandoc", entities_read);
 
         // parse the text-only bits from the document
+        debug!("Walking document AST for {}", entities_read);
         entity = use_or_skip!(textfilter::stringify_text(json_ast), errorneous_articles,
             "unable to extract plain text from Pandoc document AST for entity {}", entities_read);
 
         // strip white space, punctuation, non-character word-alike sequences, etc; keep only
         // single-space separated words (exception are line breaks for context conservation, see
         // appropriate module documentation)
+        debug!("Stripping non-letter characters for {}", entities_read);
         let stripped_words = textfilter::text2words(entity);
         if let Err(msg) = result_file.write_all(stripped_words.as_bytes()) {
             error!("could not write to output file: {}", msg);
@@ -217,7 +222,6 @@ fn plain_text_with_pandoc<Source: GetIterator + Unformatter>(input: &Path,
         }
         entities_read += 1;
 
-        
         if (entities_read % 500) == 0 {
             info!("{} articles parsed, {} errorneous articles skipped.",
                 entities_read, errorneous_articles);

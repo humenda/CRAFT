@@ -10,17 +10,10 @@ appenders:
     kind: file
     path: "crafted.log"
     encoder:
-      pattern: "{d} - {m}{n}"
+        pattern: "{d:24.24}: {m}{n}"
 root:
-  level: info
+  level: debug
   appenders:
-    - stdout
     - logfile
-loggers:
-  app::backend::db:
-    level: debug
-  app::logfile:
-    level: info
-    appenders:
-      - logfile
-    additive: false
+    - stdout
+
