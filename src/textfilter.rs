@@ -45,10 +45,12 @@ fn handle_pandoc_entities(output: &mut String, entity: &mut object::Object) {
     let add_newline = |o: &mut String| {
         // add newline _if_ there has been text inserted and previous text[-2] !=
         // RETURN_ESCAPE_SEQUENCE; newline is identified through an escape sequence
-        if o.len() > 1 && o.chars().rev().skip(1).next().unwrap() != RETURN_ESCAPE_SEQUENCE {
-            o.push(' ');
-            o.push(RETURN_ESCAPE_SEQUENCE);
-            o.push(' ');
+        if let Some(ch) = o.chars().rev().nth(1) {
+            if ch != RETURN_ESCAPE_SEQUENCE {
+                o.push(' ');
+                o.push(RETURN_ESCAPE_SEQUENCE);
+                o.push(' ');
+            }
         }
     };
 
@@ -189,8 +191,9 @@ fn recurse_json_tree(output: &mut String, jsval: &mut JsonValue) {
 /// distinguish between semantically important line breaks and those which are not relevant. The
 /// [module documentation](index.html) gives more detail about the "importance" of line breaks.
 pub fn stringify_text(pandoc_dump: String) -> Result<String> {
+    let approx_result_buffer = pandoc_dump.len() / 7; // pre-aloc some space for resulting string
     let ast = json::parse(&pandoc_dump)?;
-    let mut output = String::new();
+    let mut output = String::with_capacity(approx_result_buffer);
     match ast {
         JsonValue::Array(mut values) => if values.len() == 2 {
             recurse_json_tree(&mut output, &mut values[1]);

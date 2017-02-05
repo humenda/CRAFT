@@ -30,7 +30,7 @@ impl<'a> input_source::Unformatter for Wikipedia {
     }
 
     fn preprocess(&self, input: &str) -> Result<String> {
-        let mut preproc = MediawikiPreprocessor::new(input);
+        let preproc = MediawikiPreprocessor::new(input);
         preproc.preprocess()
     }
 }

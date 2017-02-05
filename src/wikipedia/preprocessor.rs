@@ -1,6 +1,5 @@
 use super::super::input_source::{TransformationError, Result};
 
-#[derive(Default)]
 pub struct MediawikiPreprocessor<'a> {
     /// original mediawiki input
     original_data: &'a str,
@@ -19,9 +18,12 @@ pub struct MediawikiPreprocessor<'a> {
 impl<'a> MediawikiPreprocessor<'a> {
     /// obtain a new instance of a MediawikiPreprocessor with a given mediawiki input string
     pub fn new(input: &'a str) -> MediawikiPreprocessor<'a> {
-        MediawikiPreprocessor { ignore_content: false, tag_start_found: false,
+        MediawikiPreprocessor {
+            ignore_content: false, tag_start_found: false,
             original_data: input,
-            ..Default::default()
+            prevchar: 'a', // dummy
+            tmp_storage: String::new(),
+            parsed_data: String::with_capacity(input.len()),
         }
     }
 
@@ -30,11 +32,8 @@ impl<'a> MediawikiPreprocessor<'a> {
         x == '|' || x == '{' || x == '}'
     }
 
-    // ToDo: proper error handling
-    pub fn preprocess(&'a mut self) -> Result<String> {
+    pub fn preprocess(mut self) -> Result<String> {
         for character in self.original_data.chars() {
-            // ignore characters within a table
-
             // try to identify tables and HTML tags by looking at each character (and the previous
             // one)
             match character {
@@ -53,8 +52,7 @@ impl<'a> MediawikiPreprocessor<'a> {
                     format!("text after opening <: {}",
                     self.tmp_storage), None))
         } else {
-            // ToDo: Hendrik, wie ohne clone?
-            Ok(self.parsed_data.clone())
+            Ok(self.parsed_data)
         }
     }
 
