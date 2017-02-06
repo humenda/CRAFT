@@ -141,17 +141,13 @@ pub struct Dgt;
 
 impl GetIterator for Dgt {
     fn iter(&self, input: &Path, language: Option<String>) -> Box<Iterator<Item=Result<String>>> {
-        let zip_files = match common::Files::new(input, ".zip".into()) {
-            Ok(x) => x,
-            Err(e) => return Box::new(iter::once(Err(e))),
-        };
+
         Box::new(DgtFiles {
-            zip_files: zip_files,
+            zip_files: tryiter!(common::Files::new(input, ".zip".into())),
             zip_archive: None, zip_entry: 0, zip_entry_count: 0,
-            requested_language: match language {
-                Some(x) => x,
-                None => return Box::new(iter::once(Err(TransformationError::InvalidInputArguments("No language supplied, which is required.".into())))),
-            }
+            requested_language: tryiter!(language.ok_or(
+                    TransformationError::InvalidInputArguments("No language \
+                        supplied, which is required.".into())).into()),
         })
     }
 }

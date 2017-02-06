@@ -4,6 +4,7 @@ use htmlstream;
 use std::ffi::OsString;
 use std::fs;
 use std::io::{Read};
+use std::iter;
 use std::path;
 
 use super::input_source::*;
@@ -22,6 +23,17 @@ macro_rules! trysome(
         match $e {
             Ok(d) => d,
             Err(e) => return Some(Err(From::from(e))),
+        }
+    )
+);
+
+/// try! which returns a Iterator<Result<_, TransformationError>> upon failure (useful fo r the
+/// GetIter trait; this requires importing std::iter
+macro_rules! tryiter(
+    ($e:expr) => (
+        match $e {
+            Ok(d) => d,
+            Err(e) => return Box::new(iter::once(Err(From::from(e)))),
         }
     )
 );

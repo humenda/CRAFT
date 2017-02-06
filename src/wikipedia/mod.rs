@@ -1,6 +1,7 @@
 mod articles;
 mod preprocessor;
 
+use std::iter;
 use std::path::{Path};
 
 pub use self::articles::*;
@@ -16,7 +17,7 @@ pub struct Wikipedia;
 
 impl input_source::GetIterator for Wikipedia {
     fn iter(&self, dst: &Path, _: Option<String>) -> Box<Iterator<Item=Result<String>>> {
-        Box::new(parser_from_file(dst).unwrap())
+        Box::new(tryiter!(parser_from_file(dst)))
     }
 }
 
