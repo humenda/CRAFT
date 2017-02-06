@@ -20,7 +20,7 @@ getopts = "0.2" # for the main program
 json = "*" # used for the pandoc filter
 htmlstream = "*"
 log = "0.3.6"
-log4rs = "0.5.1"
+log4rs = { version = "0.5", features = ["threshold_filter"] }
 pandoc = "0.5.*" # strip formatting
 tar = "0.4"
 xml-rs = "0.3"

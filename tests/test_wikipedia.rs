@@ -4,7 +4,7 @@ extern crate craft;
 use craft::wikipedia::*;
 
 fn preproc(input: &str) -> String {
-    let mut preproc = MediawikiPreprocessor::new(input);
+    let preproc = MediawikiPreprocessor::new(input);
     preproc.preprocess().unwrap().to_string()
 }
 

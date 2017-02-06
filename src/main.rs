@@ -98,6 +98,17 @@ fn setup_logging(log_conf: &str) {
     }
 }
 
+// Provide delegation to processing functionality
+//
+// Depending on the input source, the processing either consists of preprocessing, calling pandoc,
+// converting the output of Pandoc to plain text and do post-processing or for the simpler cases,
+// just do post-processing. The actual work is implemented in the corresponding input source, this
+// enum just delegates the work accordingly.
+enum Worker {
+    Pandoc(String, Box<Unformatter>),
+    PlainText(String),
+}
+
 
 fn main() {
     let args: Vec<String> = env::args().collect();

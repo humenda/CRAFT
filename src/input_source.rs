@@ -12,7 +12,9 @@ pub enum TransformationError {
     IoError(io::Error, Option<String>),
     /// Structural errors in the file format; may contain a message and an otpional path
     ErrorneousStructure(String, Option<String>),
-    JsonError(json::Error)
+    JsonError(json::Error),
+    /// invalid input arguments, e.g. a invalid language
+    InvalidInputArguments(String),
 }
 
 impl ::std::fmt::Display for TransformationError {
@@ -20,6 +22,7 @@ impl ::std::fmt::Display for TransformationError {
         match *self {
             TransformationError::ErrorneousStructure(ref msg, ref path) => write!(f,
                           "{}{}", msg, path.clone().unwrap_or_else(String::new)),
+            TransformationError::InvalidInputArguments(ref msg) => write!(f, "{}", msg),
             TransformationError::IoError(ref e, ref path) => {
                 write!(f, "{}: ", path.clone().unwrap_or(String::from("<no path>")))?;
                 Ok(e.fmt(f)?)
@@ -33,6 +36,7 @@ impl Error for TransformationError {
     fn description(&self) -> &str {
         match *self {
             TransformationError::ErrorneousStructure(_, _) => "invalid structure",
+            TransformationError::InvalidInputArguments(_) => "received invalid input arguments",
             TransformationError::IoError(ref err, _) => err.description(),
             TransformationError::JsonError(ref err) => err.description(),
         }

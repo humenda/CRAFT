@@ -27,7 +27,7 @@ macro_rules! trysome(
 );
 
 
-/// Return the contents of a file
+/// Read the contents of a file to a String.
 pub fn read_file(path: &path::Path) -> Result<String> {
     let f = fs::File::open(path);
     let mut content = String::new();
@@ -44,7 +44,7 @@ pub fn consume_reader(input: &mut Read) -> Result<String> {
 }
 
 
-// recursively gather all files in a given directory with a given file extension
+/// Recurse files from given directory to list all files below the given path.
 pub fn recurse_files(files_read: &mut Vec<String>, directory: &path::Path,
                      required_extension: &OsString) {
     let paths = fs::read_dir(directory).unwrap();

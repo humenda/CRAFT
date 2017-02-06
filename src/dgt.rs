@@ -16,12 +16,13 @@
 //! imported using the `eu-dgt.py` importer script in the importers directory.
 
 use std::fs;
+use std::iter;
 use std::path::{Path};
 use xml::reader::{EventReader, XmlEvent};
 use zip::read::{ZipArchive};
 
 use common;
-use input_source::{GetIterator, Result};
+use input_source::{GetIterator, Result, TransformationError};
 
 // maximum buffer size of a String buffer parsed from XML
 static MAX_BUFFER_SIZE: usize = 1048576; // 1M
@@ -140,10 +141,17 @@ pub struct Dgt;
 
 impl GetIterator for Dgt {
     fn iter(&self, input: &Path, language: Option<String>) -> Box<Iterator<Item=Result<String>>> {
+        let zip_files = match common::Files::new(input, ".zip".into()) {
+            Ok(x) => x,
+            Err(e) => return Box::new(iter::once(Err(e))),
+        };
         Box::new(DgtFiles {
-            zip_files: common::Files::new(input, ".zip".into()).unwrap(),
+            zip_files: zip_files,
             zip_archive: None, zip_entry: 0, zip_entry_count: 0,
-            requested_language: language.unwrap()
+            requested_language: match language {
+                Some(x) => x,
+                None => return Box::new(iter::once(Err(TransformationError::InvalidInputArguments("No language supplied, which is required.".into())))),
+            }
         })
     }
 }
