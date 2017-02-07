@@ -4,7 +4,6 @@ use htmlstream;
 use std::ffi::OsString;
 use std::fs;
 use std::io::{Read};
-use std::iter;
 use std::path;
 
 use super::input_source::*;
@@ -121,12 +120,9 @@ impl Iterator for Files {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(fpath) = self.file_list.next() {
-            let fpath = fpath.map(|x| x.path()).map_err(|x| TransformationError::IoError(x, None));
-            if fpath.is_err() {
-                return Some(fpath);
-            }
-            let fpath = fpath.unwrap();
-            if fpath.ends_with(&self.requested_file_ending) {
+            let fpath = trysome!(fpath.map(|x|
+                    x.path()).map_err(|x| TransformationError::IoError(x, None)));
+            if fpath.extension() == Some(&self.requested_file_ending) {
                 return Some(Ok(fpath))
             }
         }

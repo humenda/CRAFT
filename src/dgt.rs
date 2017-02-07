@@ -50,11 +50,10 @@ impl DgtFiles {
     // get new path from list of paths (zip files)
     fn get_next_zip_archive(&mut self) -> Option<Result<ZipArchive<fs::File>>> {
         match self.zip_files.next() {
-            Some(Ok(fpath)) => {
-                let file = trysome!(fs::File::open(fpath));
+            Some(fpath) => {
+                let file = trysome!(fs::File::open(trysome!(fpath)));
                 Some(Ok(trysome!(ZipArchive::new(file)))) // return ZipArchive
             },
-            Some(Err(e)) => Some(Err(e)),
             None => None,
         }
     }
@@ -63,7 +62,7 @@ impl DgtFiles {
         // if no zip archive present or old zip file consumed, get new one
         if self.zip_archive.is_none() || self.zip_entry >= self.zip_entry_count {
             // open new, unread XML file
-            let nextzip = trysome!(self.get_next_zip_archive().unwrap());
+            let nextzip = trysome!(get!(self.get_next_zip_archive()));
             self.zip_entry_count = nextzip.len();
             self.zip_archive = Some(nextzip);
         }
@@ -80,9 +79,9 @@ impl DgtFiles {
         let mut requested_language_found = false;
         // buffer for uncompressed data
         let mut text = String::with_capacity(file_length as usize);
-
         let requested_language = self.requested_language.clone();
-        while let Ok(element) = evreader.next() {
+        for element in evreader {
+            let element = trysome!(element);
             match element {
                 XmlEvent::StartElement { name, attributes, .. } =>
                     // only <tuv lang="`self.requested_language`"> should match:
@@ -90,6 +89,7 @@ impl DgtFiles {
                         if let Some(_ign) = attributes.iter().find(|attr|
                             attr.name.local_name == "lang" &&
                             attr.value == requested_language) {
+                            println!("ever");
                             requested_language_found = true;
                     }
                 },
@@ -113,6 +113,7 @@ impl DgtFiles {
             _ => ()
             };
         };
+        println!("Parsed text length: {}", text.len());
         match text.is_empty() {
             false => {
                 if !text.ends_with("\n") {
@@ -143,7 +144,7 @@ impl GetIterator for Dgt {
     fn iter(&self, input: &Path, language: Option<String>) -> Box<Iterator<Item=Result<String>>> {
 
         Box::new(DgtFiles {
-            zip_files: tryiter!(common::Files::new(input, ".zip".into())),
+            zip_files: tryiter!(common::Files::new(input, "zip".into())),
             zip_archive: None, zip_entry: 0, zip_entry_count: 0,
             requested_language: tryiter!(language.ok_or(
                     TransformationError::InvalidInputArguments("No language \

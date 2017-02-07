@@ -9,7 +9,7 @@ pub struct Gutenberg;
 impl GetIterator for Gutenberg {
     fn iter(&self, dst: &Path, _: Option<String>) ->
                 Box<Iterator<Item=Result<String>>> {
-        common::read_files(dst.into(), ".txt".into())
+        common::read_files(dst.into(), "txt".into())
     }
 }
 

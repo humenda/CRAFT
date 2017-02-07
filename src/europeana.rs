@@ -16,7 +16,7 @@ struct Articles {
 
 impl Articles {
     fn new(top_level: &Path) -> Self {
-        Articles { paths: common::read_files(top_level.into(), ".json".into()) }
+        Articles { paths: common::read_files(top_level.into(), "json".into()) }
     }
 }
 

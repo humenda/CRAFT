@@ -13,6 +13,8 @@ pub enum TransformationError {
     /// Structural errors in the file format; may contain a message and an otpional path
     ErrorneousStructure(String, Option<String>),
     JsonError(json::Error),
+    /// XML parser errors
+    XmlParserERrror(::xml::reader::Error),
     /// invalid input arguments, e.g. a invalid language
     InvalidInputArguments(String),
 }
@@ -28,6 +30,7 @@ impl ::std::fmt::Display for TransformationError {
                 Ok(e.fmt(f)?)
             },
             TransformationError::JsonError(ref e) => e.fmt(f),
+            TransformationError::XmlParserERrror(ref e) => e.fmt(f),
         }
     }
 }
@@ -39,6 +42,7 @@ impl Error for TransformationError {
             TransformationError::InvalidInputArguments(_) => "received invalid input arguments",
             TransformationError::IoError(ref err, _) => err.description(),
             TransformationError::JsonError(ref err) => err.description(),
+            TransformationError::XmlParserERrror(ref err) => err.description(),
         }
     }
 
@@ -46,6 +50,7 @@ impl Error for TransformationError {
         match *self {
             TransformationError::IoError(ref err, _) => err.cause(),
             TransformationError::JsonError(ref err) => err.cause(),
+            TransformationError::XmlParserERrror(ref err) => err.cause(),
             _ => None,
         }
     }
@@ -55,6 +60,13 @@ impl Error for TransformationError {
 impl From<::std::io::Error> for TransformationError {
     fn from(err: ::std::io::Error) -> TransformationError {
         TransformationError::IoError(err, None)
+    }
+}
+
+/// allow hassle-free coercion from xml::reader::Error
+impl From<::xml::reader::Error> for TransformationError {
+    fn from(err: ::xml::reader::Error) -> TransformationError {
+        TransformationError::XmlParserERrror(err)
     }
 }
 
