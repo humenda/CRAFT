@@ -236,25 +236,36 @@ fn is_apostrophe(c: char) -> bool {
 
 
 
-// Test whether all characters are alphabetical; could be a closure, but early
+// Test whether all characters are alphabetical or a number; could be a closure, but early
 // return might make it SLIGHTLY more efficient; "-" is part  valid within a
 // word, too
 // Note: apostrophes count as alphabetical, too.
-fn all_chars_alphabetical(word: &String) -> bool {
-    // make sure that a word not only consists of dashes:
-    let mut found_one_alphabetical_character = false;
-    for character in word.chars() {
-        if character.is_alphabetic() {
-            if !found_one_alphabetical_character {
-                found_one_alphabetical_character = true;
+#[inline]
+fn word_should_be_included(word: &String) -> bool {
+    match word.len() {
+        0 => false,
+        1 | 2 => word.chars().all(|x: char| x.is_digit(10) || x.is_alphabetic()),
+        _ => {
+            // make sure that a word not only consists of dashes: or apostrophes
+            let first = word.chars().next().unwrap();
+            if !(first.is_digit(10) || first.is_alphabetic()) {
+                return false;
             }
-        } else if is_apostrophe(character) {
-            // works in a word, but do not set found_one_alphabetical_character :)
-        } else if character != '-' { //not alphabetical and no dash
-            return false; // early return, non-alphabetical character
+            // check rest of word less restrictively: allow hyphens and dashes
+            let mut found_one_alphabetical_character = false;
+            for character in word.chars().skip(1) {
+                let valid_char = character.is_digit(10) || character.is_alphabetic();
+                let is_apostrophe = is_apostrophe(character);
+                if !(is_apostrophe || valid_char || character == '-') {
+                    return false;
+                }
+                if valid_char {
+                    found_one_alphabetical_character = true;
+                }
+            }
+            found_one_alphabetical_character
         }
     }
-    found_one_alphabetical_character
 }
 
 // remove parenthesis and similar from word
@@ -308,12 +319,12 @@ pub fn text2words(input: String) -> String {
             remove_punctuation(&mut word);
             remove_enclosing_characters(&mut word);
             remove_punctuation(&mut word);
-            if all_chars_alphabetical(&word) {
+            if word_should_be_included(&word) {
                 if words.len() != 0 && words.chars().last() != Some('\n') {
                     words.push(' ');
                 }
 
-                words.push_str(word.to_lowercase().as_str());
+                words.push_str(word.as_str());
             }
         }
     }

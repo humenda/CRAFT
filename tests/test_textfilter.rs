@@ -19,14 +19,14 @@ fn test_other_whitespace_characters_are_ignored() {
 }
 
 #[test]
-fn test_numbers_are_ignored() {
-    assert_eq!(art2words("1990 was a special date"), "was a special date\n");
-    assert_eq!(art2words("my 1st test"), "my test\n");
+fn test_numbers_are_included() {
+    assert_eq!(art2words("1990 was a special year"), "1990 was a special year\n");
+    assert_eq!(art2words("my 1st test"), "my 1st test\n");
 }
 
 #[test]
 fn test_that_punctuation_is_removed_and_words_preserved() {
-    assert_eq!(art2words("However, I like it. :)"), "however i like it\n");
+    assert_eq!(art2words("However, I like it. :)"), "However I like it\n");
 }
 
 #[test]
@@ -34,7 +34,7 @@ fn test_words_with_hyphen_work() {
     assert_eq!(art2words("this is a non-alcoholic drink"), "this is a \
                 non-alcoholic drink\n");
     // do suspended hyphens work:
-    assert_eq!(art2words("Using hard- and software"), "using hard- and software\n");
+    assert_eq!(art2words("Using hard- and software"), "Using hard- and software\n");
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn test_parenthesis_are_removed() {
 
 #[test]
 fn test_that_apostrophies_may_be_contained_in_word() {
-    assert_eq!(art2words("I'm not sure, O'raggley"), "i'm not sure o'raggley\n");
+    assert_eq!(art2words("I'm not sure, O'raggley"), "I'm not sure O'raggley\n");
 }
 
 #[test]
@@ -63,8 +63,8 @@ fn test_words_with_only_punctuation_etc_no_alphabetical_characters_removed() {
 #[test]
 fn test_that_unicode_quotes_are_removed() {
     // example from the real world
-    let text = "Deutsch „die Hauptstadt“.";
-    assert_eq!(art2words(text), "deutsch die hauptstadt\n");
+    let text = "zu Deutsch „die Hauptstadt“.";
+    assert_eq!(art2words(text), "zu Deutsch die Hauptstadt\n");
 }
 
 #[test]
