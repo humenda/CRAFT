@@ -80,7 +80,7 @@ fn parse_cmd(program: &str, args: &[String])
         return Err(format!("The language to be parsed has to be given.\n{}",
                            get_usage(program, opts)));
     } else {
-        let lang = matched.free[0].clone();
+        let lang = matched.free[1].clone();
         Ok((matched, lang))
     }
 }
@@ -204,28 +204,24 @@ fn plain_text_with_pandoc<Source: GetIterator + Unformatter>(input: &Path,
 
         // preprocessing might remove formatting which Pandoc cannot handle
         if input_source.is_preprocessing_required() {
-            debug!("Preprocessing entity {}", entities_read);
             entity = use_or_skip!(input_source.preprocess(&entity),
                 errorneous_articles, "unable to preprocess entity {}",
                 entities_read);
         }
 
         // retrieve a JSON representation of the document AST
-        debug!("Calling pandoc to get JSON AST for {}", entities_read);
         let json_ast = use_or_skip!(
                 textfilter::call_pandoc(input_source.get_input_format(), entity),
                 errorneous_articles,
                 "entity {} couldn't be parsed by pandoc", entities_read);
 
         // parse the text-only bits from the document
-        debug!("Walking document AST for {}", entities_read);
         entity = use_or_skip!(textfilter::stringify_text(json_ast), errorneous_articles,
             "unable to extract plain text from Pandoc document AST for entity {}", entities_read);
 
         // strip white space, punctuation, non-character word-alike sequences, etc; keep only
         // single-space separated words (exception are line breaks for context conservation, see
         // appropriate module documentation)
-        debug!("Stripping non-letter characters for {}", entities_read);
         let stripped_words = textfilter::text2words(entity);
         if let Err(msg) = result_file.write_all(stripped_words.as_bytes()) {
             error!("could not write to output file: {}", msg);

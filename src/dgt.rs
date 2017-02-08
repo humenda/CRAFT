@@ -16,6 +16,7 @@
 //! imported using the `eu-dgt.py` importer script in the importers directory.
 
 use std::fs;
+use std::io::{Read};
 use std::iter;
 use std::path::{Path};
 use xml::reader::{EventReader, XmlEvent};
@@ -23,6 +24,7 @@ use zip::read::{ZipArchive};
 
 use common;
 use input_source::{GetIterator, Result, TransformationError};
+use textfilter;
 
 // maximum buffer size of a String buffer parsed from XML
 static MAX_BUFFER_SIZE: usize = 1048576; // 1M
@@ -48,11 +50,14 @@ struct DgtFiles {
 
 impl DgtFiles {
     // get new path from list of paths (zip files)
-    fn get_next_zip_archive(&mut self) -> Option<Result<ZipArchive<fs::File>>> {
+    fn get_next_zip_archive(&mut self) -> Option<Result<()>> {
         match self.zip_files.next() {
             Some(fpath) => {
                 let file = trysome!(fs::File::open(trysome!(fpath)));
-                Some(Ok(trysome!(ZipArchive::new(file)))) // return ZipArchive
+                let zip = trysome!(ZipArchive::new(file)); // return ZipArchive
+                self.zip_entry_count = zip.len();
+                self.zip_archive = Some(zip);
+                Some(Ok(()))
             },
             None => None,
         }
@@ -60,25 +65,44 @@ impl DgtFiles {
 
     fn get_next_chunk(&mut self) -> Option<Result<String>> {
         // if no zip archive present or old zip file consumed, get new one
-        if self.zip_archive.is_none() || self.zip_entry >= self.zip_entry_count {
+        if self.zip_archive.is_none() {
             // open new, unread XML file
-            let nextzip = trysome!(get!(self.get_next_zip_archive()));
-            self.zip_entry_count = nextzip.len();
-            self.zip_archive = Some(nextzip);
-        }
+            match get!(self.get_next_zip_archive()) {
+                Err(e) => {
+                    // increment file index even in case of error, otherwise endless loop
+                    self.zip_entry += 1;
+                    return Some(Err(e));
+                },
+                _ => (),
+            }
+        };
 
         // increment before returning for next iteration
         self.zip_entry += 1;
         let mut zip_archive = self.zip_archive.as_mut().unwrap();
-        let zipfile = trysome!(zip_archive.by_index(self.zip_entry - 1));
-        let file_length = zipfile.size();
-        let mut evreader = EventReader::new(zipfile);
+        let mut zipfile = trysome!(zip_archive.by_index(self.zip_entry - 1));
+        let file_length = zipfile.size() as usize;
+        // load whole file nto RAM, decompress, decode from utf16 to utf8
+        let mut raw_data = vec![0u8; file_length as usize];
+        let mut total_bytes_read = 0;
+        loop {
+            let bytes_read = trysome!(zipfile.read(&mut raw_data[total_bytes_read..]));
+            total_bytes_read += bytes_read;
+            if total_bytes_read >= file_length {
+                break;
+            }
+        }
+        let raw_data = unsafe {
+                ::std::slice::from_raw_parts_mut(raw_data.as_mut_ptr() as *mut u16,
+                     raw_data.len() / 2) };
+        let data = String::from_utf16(&raw_data[1..]).unwrap();
+        let evreader = EventReader::new(::std::io::Cursor::new(data));
 
         // <tuv> nodes have "lang" attribute, which is compared against self.requested_language and
         // triggers requested_language_found set to true
         let mut requested_language_found = false;
-        // buffer for uncompressed data
-        let mut text = String::with_capacity(file_length as usize);
+        // buffer for parsed data
+        let mut text = String::with_capacity(file_length / 4);
         let requested_language = self.requested_language.clone();
         for element in evreader {
             let element = trysome!(element);
@@ -89,13 +113,14 @@ impl DgtFiles {
                         if let Some(_ign) = attributes.iter().find(|attr|
                             attr.name.local_name == "lang" &&
                             attr.value == requested_language) {
-                            println!("ever");
                             requested_language_found = true;
                     }
                 },
                 XmlEvent::EndElement { name } =>
                     if name.local_name == "seg" && requested_language_found {
                         requested_language_found = false;
+                        text.push_str(&format!(" {} ",
+                        textfilter::RETURN_ESCAPE_SEQUENCE));
                 },
                 XmlEvent::Characters(content) => {
                     if requested_language_found {
@@ -113,7 +138,6 @@ impl DgtFiles {
             _ => ()
             };
         };
-        println!("Parsed text length: {}", text.len());
         match text.is_empty() {
             false => {
                 if !text.ends_with("\n") {
