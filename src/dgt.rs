@@ -134,7 +134,7 @@ impl DgtFiles {
     fn get_next_chunk(&mut self) -> Option<Result<String>> {
         // loop until zip archive or zip entry with request data is found
         let mut extracted_text = String::new();
-        while !self.iteration_started || self.zip_archive.is_some() {
+        loop {
             if !self.iteration_started {
                 self.iteration_started = true;
             }
@@ -163,7 +163,6 @@ impl DgtFiles {
                 return Some(Ok(extracted_text))
             } // otherwise: loooooop
         }
-        None
     }
 }
 
