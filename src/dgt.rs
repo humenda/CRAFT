@@ -46,107 +46,123 @@ struct DgtFiles {
     zip_entry_count: usize,
     /// language to filter for
     requested_language: String,
+    /// helper to figure out whether zip_archive is None because end reached or first iteration
+    iteration_started: bool,
 }
 
 impl DgtFiles {
     // get new path from list of paths (zip files)
     fn get_next_zip_archive(&mut self) -> Option<Result<()>> {
-        match self.zip_files.next() {
-            Some(fpath) => {
-                let file = trysome!(fs::File::open(trysome!(fpath)));
-                let zip = trysome!(ZipArchive::new(file)); // return ZipArchive
-                self.zip_entry_count = zip.len();
-                self.zip_archive = Some(zip);
-                Some(Ok(()))
-            },
-            None => None,
-        }
+        let fpath = get!(self.zip_files.next());
+        let file = trysome!(fs::File::open(trysome!(fpath)));
+        let zip = trysome!(ZipArchive::new(file));
+        self.zip_entry = 0;
+        self.zip_entry_count = zip.len(); // number of files in zip
+        self.zip_archive = Some(zip);
+        Some(Ok(()))
     }
 
-    fn get_next_chunk(&mut self) -> Option<Result<String>> {
-        // if no zip archive present or old zip file consumed, get new one
-        if self.zip_archive.is_none() {
-            // open new, unread XML file
-            match get!(self.get_next_zip_archive()) {
-                Err(e) => {
-                    // increment file index even in case of error, otherwise endless loop
-                    self.zip_entry += 1;
-                    return Some(Err(e));
-                },
-                _ => (),
-            }
-        };
-
-        // increment before returning for next iteration
-        self.zip_entry += 1;
-        let mut zip_archive = self.zip_archive.as_mut().unwrap();
-        let mut zipfile = trysome!(zip_archive.by_index(self.zip_entry - 1));
-        let file_length = zipfile.size() as usize;
+    // Read the contents of the given entry to RAM. The callee must make sure that self.zip_archive
+    // != None and entry < self.zip_entry_count
+    fn read_zip_entry_to_ram(&mut self, index: usize) -> Result<String> {
+        let mut zip_archive = self.zip_archive.as_mut().unwrap(); // safe here
+        let mut zipped_file = try!(zip_archive.by_index(index));
+        let file_length = zipped_file.size() as usize;
         // load whole file nto RAM, decompress, decode from utf16 to utf8
         let mut raw_data = vec![0u8; file_length as usize];
         let mut total_bytes_read = 0;
         loop {
-            let bytes_read = trysome!(zipfile.read(&mut raw_data[total_bytes_read..]));
+            let bytes_read = try!(zipped_file.read(&mut raw_data[total_bytes_read..]));
             total_bytes_read += bytes_read;
             if total_bytes_read >= file_length {
                 break;
             }
         }
+        // ToDo: make sure that length is dividable by 2
         let raw_data = unsafe {
                 ::std::slice::from_raw_parts_mut(raw_data.as_mut_ptr() as *mut u16,
                      raw_data.len() / 2) };
-        let data = String::from_utf16(&raw_data[1..]).unwrap();
-        let evreader = EventReader::new(::std::io::Cursor::new(data));
-
-        // <tuv> nodes have "lang" attribute, which is compared against self.requested_language and
-        // triggers requested_language_found set to true
-        let mut requested_language_found = false;
-        // buffer for parsed data
-        let mut text = String::with_capacity(file_length / 4);
-        let requested_language = self.requested_language.clone();
-        for element in evreader {
-            let element = trysome!(element);
-            match element {
-                XmlEvent::StartElement { name, attributes, .. } =>
-                    // only <tuv lang="`self.requested_language`"> should match:
-                    if name.local_name == "tuv" {
-                        if let Some(_ign) = attributes.iter().find(|attr|
-                            attr.name.local_name == "lang" &&
-                            attr.value == requested_language) {
-                            requested_language_found = true;
-                    }
-                },
-                XmlEvent::EndElement { name } =>
-                    if name.local_name == "seg" && requested_language_found {
-                        requested_language_found = false;
-                        text.push_str(&format!(" {} ",
-                        textfilter::RETURN_ESCAPE_SEQUENCE));
-                },
-                XmlEvent::Characters(content) => {
-                    if requested_language_found {
-                        text.push_str(&content);
-                        if text.len() >= MAX_BUFFER_SIZE {
-                            break; // buffer "full"
-                        }
-                    }
-                },
-                XmlEvent::Whitespace(space) => {
-                    if requested_language_found {
-                        text.push_str(&space);
-                    }
-            },
-            _ => ()
-            };
-        };
-        match text.is_empty() {
-            false => {
-                if !text.ends_with("\n") {
-                    text.push('\n'); // maintain word2vec "context" by adding newline
-                }
-                Some(Ok(text))
-            },
-            true => None
+        match raw_data[0] == 0xfeff {
+            true => String::from_utf16(&raw_data[1..]).map_err(|_|
+                TransformationError::EncodingError("Invalid UTF16-encoded file".into())),
+            false => String::from_utf16(&raw_data).map_err(|_|
+                TransformationError::EncodingError("Invalid UTF16-encoded file".into())),
         }
+    }
+
+    fn get_next_chunk(&mut self) -> Option<Result<String>> {
+        // loop until zip archive or zip entry with request data is found
+        let mut extracted_text = String::new();
+        while !self.iteration_started || self.zip_archive.is_some() {
+            if !self.iteration_started {
+                self.iteration_started = true;
+            }
+
+            // if no zip archive present or old zip file consumed, get new one
+            if self.zip_archive.is_none() {
+                // open new, unread XML file or return error
+                if let Err(err) = get!(self.get_next_zip_archive()) {
+                    self.zip_entry += 1; // basically ignores this entry
+                    return Some(Err(err));
+                }
+            } else if self.zip_entry >= self.zip_entry_count {
+                self.zip_archive = None;
+                continue; // done with this zip file, go and fetch a new one
+            }
+
+            // increment before returning for next iteration
+            self.zip_entry += 1;
+            let current_index = self.zip_entry - 1;
+            let data = trysome!(self.read_zip_entry_to_ram(current_index));
+            extracted_text.reserve(data.len() / 4);
+            let evreader = EventReader::new(::std::io::Cursor::new(data)); // xml
+
+            // <tuv> nodes have "lang" attribute, which is compared against self.requested_language and
+            // triggers requested_language_found set to true
+            let mut requested_language_found = false;
+            let requested_language = self.requested_language.clone();
+            for element in evreader {
+                let element = trysome!(element);
+                match element {
+                    XmlEvent::StartElement { name, attributes, .. } =>
+                        // only <tuv lang="`self.requested_language`"> should match:
+                        if name.local_name == "tuv" {
+                            if let Some(_ign) = attributes.iter().find(|attr|
+                                                                       attr.name.local_name == "lang" &&
+                                                                       attr.value == requested_language) {
+                                requested_language_found = true;
+                            }
+                        },
+                        XmlEvent::EndElement { name } =>
+                            if name.local_name == "seg" && requested_language_found {
+                                requested_language_found = false;
+                                extracted_text.push_str(&format!(" {} ",
+                                                       textfilter::RETURN_ESCAPE_SEQUENCE));
+                            },
+                            XmlEvent::Characters(content) => {
+                                if requested_language_found {
+                                    extracted_text.push_str(&content);
+                                    if extracted_text.len() >= MAX_BUFFER_SIZE {
+                                        break; // buffer "full"
+                                    }
+                                }
+                            },
+                            XmlEvent::Whitespace(space) => {
+                                if requested_language_found {
+                                    extracted_text.push_str(&space);
+                                }
+                            },
+                            _ => ()
+                };
+            };
+            if !extracted_text.is_empty() {
+                if !extracted_text.ends_with("\n") {
+                    extracted_text.push('\n'); // maintain word2vec "context" by adding newline
+                }
+                return Some(Ok(extracted_text))
+            } // otherwise: loooooop
+        }
+        None
     }
 }
 
@@ -173,6 +189,7 @@ impl GetIterator for Dgt {
             requested_language: tryiter!(language.ok_or(
                     TransformationError::InvalidInputArguments("No language \
                         supplied, which is required.".into())).into()),
+            iteration_started: false,
         })
     }
 }

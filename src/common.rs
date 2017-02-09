@@ -121,7 +121,7 @@ impl Iterator for Files {
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(fpath) = self.file_list.next() {
             let fpath = trysome!(fpath.map(|x|
-                    x.path()).map_err(|x| TransformationError::IoError(x, None)));
+                    x.path()).map_err(|e| TransformationError::IoError(e, None)));
             if fpath.extension() == Some(&self.requested_file_ending) {
                 return Some(Ok(fpath))
             }

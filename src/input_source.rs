@@ -6,6 +6,7 @@ use pandoc;
 
 pub type Result<T> = ::std::result::Result<T, TransformationError>;
 
+
 #[derive(Debug)]
 pub enum TransformationError {
     /// Save an IO error and the path to the file where the io::Error occurred (if possible)
@@ -17,6 +18,8 @@ pub enum TransformationError {
     XmlParserERrror(::xml::reader::Error),
     /// invalid input arguments, e.g. a invalid language
     InvalidInputArguments(String),
+    /// encoding issues
+    EncodingError(String),
 }
 
 impl ::std::fmt::Display for TransformationError {
@@ -30,6 +33,7 @@ impl ::std::fmt::Display for TransformationError {
                 Ok(e.fmt(f)?)
             },
             TransformationError::JsonError(ref e) => e.fmt(f),
+            TransformationError::EncodingError(ref e) => write!(f, "{}", e),
             TransformationError::XmlParserERrror(ref e) => e.fmt(f),
         }
     }
@@ -40,6 +44,7 @@ impl Error for TransformationError {
         match *self {
             TransformationError::ErrorneousStructure(_, _) => "invalid structure",
             TransformationError::InvalidInputArguments(_) => "received invalid input arguments",
+            TransformationError::EncodingError(_) => "invalid encoding",
             TransformationError::IoError(ref err, _) => err.description(),
             TransformationError::JsonError(ref err) => err.description(),
             TransformationError::XmlParserERrror(ref err) => err.description(),
@@ -91,7 +96,6 @@ impl From<::zip::result::ZipError> for TransformationError {
         }
     }
 }
-
 
 
 

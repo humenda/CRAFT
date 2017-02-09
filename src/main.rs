@@ -76,7 +76,7 @@ fn parse_cmd(program: &str, args: &[String])
     }
 
     // get language
-    if matched.free.is_empty() {
+    if matched.free.len() < 2 {
         return Err(format!("The language to be parsed has to be given.\n{}",
                            get_usage(program, opts)));
     } else {
