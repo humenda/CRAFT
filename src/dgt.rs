@@ -51,7 +51,7 @@ struct DgtFiles {
 }
 
 impl DgtFiles {
-    // get new path from list of paths (zip files)
+    // this method opens the next zip archive and saves it into self.zip_archive
     fn get_next_zip_archive(&mut self) -> Option<Result<()>> {
         let fpath = get!(self.zip_files.next());
         let file = trysome!(fs::File::open(trysome!(fpath)));
@@ -62,8 +62,8 @@ impl DgtFiles {
         Some(Ok(()))
     }
 
-    // Read the contents of the given entry to RAM. The callee must make sure that self.zip_archive
-    // != None and entry < self.zip_entry_count
+    // Read the contents of the given entry to RAM. The callee must make sure that 
+    // `self.zip_archive != None` and `self.zip_entry < self.zip_entry_count`
     fn read_zip_entry_to_ram(&mut self, index: usize) -> Result<String> {
         let mut zip_archive = self.zip_archive.as_mut().unwrap(); // safe here
         let mut zipped_file = try!(zip_archive.by_index(index));
@@ -90,6 +90,47 @@ impl DgtFiles {
         }
     }
 
+    // parse the XML file and write the output to the second input parameter
+    fn parse_xml(&self, xml: String, output: &mut String) -> Result<()> {
+        let evreader = EventReader::new(::std::io::Cursor::new(xml));
+
+        // <tuv> nodes have "lang" attribute, which is compared against self.requested_language and
+        // triggers requested_language_found set to true
+        let mut requested_language_found = false;
+        let requested_language = self.requested_language.clone();
+        for element in evreader {
+            let element = element?;
+            match element {
+                XmlEvent::StartElement { name, attributes, .. } =>
+                    // only <tuv lang="`self.requested_language`"> should match:
+                    if name.local_name == "tuv" {
+                        if let Some(_ign) = attributes.iter().find(|attr|
+                               attr.name.local_name == "lang" &&
+                               attr.value == requested_language) {
+                            requested_language_found = true;
+                        }
+                },
+                XmlEvent::EndElement { name } =>
+                    if name.local_name == "seg" && requested_language_found {
+                        requested_language_found = false;
+                        output.push_str(&format!(" {} ",
+                                                         textfilter::RETURN_ESCAPE_SEQUENCE));
+                },
+                XmlEvent::Characters(content) => if requested_language_found {
+                        output.push_str(&content);
+                        if output.len() >= MAX_BUFFER_SIZE {
+                            break; // buffer "full"
+                        }
+                },
+                XmlEvent::Whitespace(space) => if requested_language_found {
+                        output.push_str(&space);
+                },
+                _ => ()
+            };
+        }
+        Ok(())
+    }
+
     fn get_next_chunk(&mut self) -> Option<Result<String>> {
         // loop until zip archive or zip entry with request data is found
         let mut extracted_text = String::new();
@@ -100,7 +141,6 @@ impl DgtFiles {
 
             // if no zip archive present or old zip file consumed, get new one
             if self.zip_archive.is_none() {
-                // open new, unread XML file or return error
                 if let Err(err) = get!(self.get_next_zip_archive()) {
                     self.zip_entry += 1; // basically ignores this entry
                     return Some(Err(err));
@@ -115,46 +155,7 @@ impl DgtFiles {
             let current_index = self.zip_entry - 1;
             let data = trysome!(self.read_zip_entry_to_ram(current_index));
             extracted_text.reserve(data.len() / 4);
-            let evreader = EventReader::new(::std::io::Cursor::new(data)); // xml
-
-            // <tuv> nodes have "lang" attribute, which is compared against self.requested_language and
-            // triggers requested_language_found set to true
-            let mut requested_language_found = false;
-            let requested_language = self.requested_language.clone();
-            for element in evreader {
-                let element = trysome!(element);
-                match element {
-                    XmlEvent::StartElement { name, attributes, .. } =>
-                        // only <tuv lang="`self.requested_language`"> should match:
-                        if name.local_name == "tuv" {
-                            if let Some(_ign) = attributes.iter().find(|attr|
-                                                                       attr.name.local_name == "lang" &&
-                                                                       attr.value == requested_language) {
-                                requested_language_found = true;
-                            }
-                        },
-                        XmlEvent::EndElement { name } =>
-                            if name.local_name == "seg" && requested_language_found {
-                                requested_language_found = false;
-                                extracted_text.push_str(&format!(" {} ",
-                                                       textfilter::RETURN_ESCAPE_SEQUENCE));
-                            },
-                            XmlEvent::Characters(content) => {
-                                if requested_language_found {
-                                    extracted_text.push_str(&content);
-                                    if extracted_text.len() >= MAX_BUFFER_SIZE {
-                                        break; // buffer "full"
-                                    }
-                                }
-                            },
-                            XmlEvent::Whitespace(space) => {
-                                if requested_language_found {
-                                    extracted_text.push_str(&space);
-                                }
-                            },
-                            _ => ()
-                };
-            };
+            trysome!(self.parse_xml(data, &mut extracted_text));
             if !extracted_text.is_empty() {
                 if !extracted_text.ends_with("\n") {
                     extracted_text.push('\n'); // maintain word2vec "context" by adding newline
