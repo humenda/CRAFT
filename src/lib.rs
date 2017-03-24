@@ -1,4 +1,5 @@
 extern crate bzip2;
+extern crate isolang;
 extern crate json;
 extern crate htmlstream;
 #[macro_use]

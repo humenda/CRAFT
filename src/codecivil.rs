@@ -15,7 +15,8 @@ use input_source::{GetIterator, Result, Unformatter};
 pub struct CodeCivil;
 
 impl GetIterator for CodeCivil {
-    fn iter(&self, input: &Path, _: Option<String>) -> Box<Iterator<Item=Result<String>>> {
+    fn iter(&self, input: &Path, _: Option<::isolang::Language>)
+            -> Box<Iterator<Item=Result<String>>> {
         common::read_files(input.into(), "md".into())
     }
 }

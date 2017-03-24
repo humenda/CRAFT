@@ -105,7 +105,7 @@ pub trait GetIterator {
     ///
     /// The last parameter identifies the language to be parsed. This is usually
     /// only considered for multi-language corpora.
-    fn iter(&self, &Path, Option<String>) -> Box<Iterator<Item=Result<String>>>;
+    fn iter(&self, &Path, Option<::isolang::Language>) -> Box<Iterator<Item=Result<String>>>;
 }
 
 /// Strip formatting from a document

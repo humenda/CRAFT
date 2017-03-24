@@ -12,11 +12,13 @@
 
 extern crate craft;
 extern crate getopts;
+extern crate isolang;
 #[macro_use]
 extern crate log;
 extern crate log4rs;
 
 use getopts::Options;
+use isolang::Language;
 use std::env;
 use std::fs::File;
 use std::io::Write;
@@ -30,21 +32,22 @@ use craft::input_source::{GetIterator, Unformatter};
 fn get_usage(pname: &str, opts: Options) -> String {
     let description = "Crafted parses various input sources to produce a word corpus, which can then be \
         \nused by Word2vec. The output is written to a file called text8, which is over- \
-        \nwritten on each launch.";
-    let usage = format!("Usage: {} [options, ...]\n\n{}\n", pname, description);
+        \nwritten on each launch.\n \
+        The language for parsing has to be given as ISO 639-3 three-letter language code.\n";
+    let usage = format!("Usage: {} [options, ...] LANGUAGE\n\n{}\n", pname, description);
     opts.usage(&usage)
 }
 
 /// Parse cmd options, return matches and input language
 fn parse_cmd(program: &str, args: &[String])
-        -> Result<(getopts::Matches, String), String> {
+        -> Result<(getopts::Matches, ::isolang::Language), String> {
     let mut opts = Options::new();
     opts.optopt("c", "codecivil", "activate code civil extractor, parsing \
                 French laws from MarkDown files", "DIRECTORY");
 
     opts.optopt("e", "europeana", "activate europeana extractor for parsing news paper dumps",
                 "DIRECTORY");
-    opts.optopt("d", "eu-dgta", "activate EU-DGT (translation memory) \
+    opts.optopt("d", "eu-dgt", "activate EU-DGT (translation memory) \
                 parser for the data of the EU DGT data in zip format",
                 "DIRECTORY");
     opts.optopt("g", "gutenberg", "activate the Gutenberg corpus extractor \
@@ -52,8 +55,6 @@ fn parse_cmd(program: &str, args: &[String])
     opts.optopt("l", "logging_conf", "set output file name for the logging \
                 configuration (default log4rs.yaml)", "FILENAME");
     opts.optflag("h", "help", "print this help");
-    // ToDo: unused
-    opts.optopt("o", "", "set output file name", "NAME");
     opts.optopt("w", "wikipedia", "activate the Wikipedia corpus extractor \
                  and read Wikipedia articles from the specified bzipped XML \
                  article-only dump", "FILE");
@@ -77,10 +78,12 @@ fn parse_cmd(program: &str, args: &[String])
 
     // get language
     if matched.free.len() < 2 {
-        return Err(format!("The language to be parsed has to be given.\n{}",
+        return Err(format!("The language to be parsed has to be given as a \
+                    three-letter ISO 639-3 code.\n{}",
                            get_usage(program, opts)));
     } else {
-        let lang = matched.free[1].clone();
+        let lang = Language::from_639_3(&matched.free[1]).ok_or(format!(
+                "Expected a valid ISO 639-3 code as language id, found {}", matched.free[1]))?;
         Ok((matched, lang))
     }
 }
@@ -244,12 +247,12 @@ fn plain_text_with_pandoc<Source: GetIterator + Unformatter>(input: &Path,
 /// This function utilises punctuation removing rules to get only plain text out of a document with
 /// no formatting.
 fn plain_text<Source: GetIterator>(input: &Path, input_source: Box<Source>,
-           result_file: &mut File, language: &String) {
+           result_file: &mut File, language: &Language) {
     let mut entities_read = 0; // keep it external to for loop to retrieve later
     let mut errorneous_articles = 0;
 
     // an entity can be either an article, a book or similar, it's the smallest unit of processing
-    for entity in input_source.iter(input, Some(language.clone())) {
+    for entity in input_source.iter(input, Some(*language)) {
         let entity = use_or_skip!(entity, errorneous_articles,
             "unable to retrieve entity {} from input source", entities_read);
 

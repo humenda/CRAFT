@@ -16,7 +16,8 @@ use pandoc;
 pub struct Wikipedia;
 
 impl input_source::GetIterator for Wikipedia {
-    fn iter(&self, dst: &Path, _: Option<String>) -> Box<Iterator<Item=Result<String>>> {
+    fn iter(&self, dst: &Path, _: Option<::isolang::Language>)
+            -> Box<Iterator<Item=Result<String>>> {
         Box::new(tryiter!(parser_from_file(dst)))
     }
 }

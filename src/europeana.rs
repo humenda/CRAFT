@@ -57,7 +57,8 @@ impl Iterator for Articles {
 }
 
 impl GetIterator for Europeana {
-    fn iter(&self, input: &Path, _: Option<String>) -> Box<Iterator<Item=Result<String>>> {
+    fn iter(&self, input: &Path, _: Option<::isolang::Language>)
+            -> Box<Iterator<Item=Result<String>>> {
         Box::new(Articles::new(input))
     }
 }

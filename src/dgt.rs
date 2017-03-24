@@ -15,6 +15,7 @@
 //! files in a directory, looking for `*.tmx` files in those archives. The zip files can be
 //! imported using the `eu-dgt.py` importer script in the importers directory.
 
+use isolang::Language;
 use std::fs;
 use std::io::{Read};
 use std::iter;
@@ -44,7 +45,7 @@ struct DgtFiles {
     zip_entry: usize,
     /// length of zip file (so that zip_archive.unwrap().len() is not done each time)
     zip_entry_count: usize,
-    /// language to filter for
+    /// ISO 639-1 language code to filter for
     requested_language: String,
     /// helper to figure out whether zip_archive is None because end reached or first iteration
     iteration_started: bool,
@@ -68,7 +69,7 @@ impl DgtFiles {
         let mut zip_archive = self.zip_archive.as_mut().unwrap(); // safe here
         let mut zipped_file = try!(zip_archive.by_index(index));
         let file_length = zipped_file.size() as usize;
-        // load whole file nto RAM, decompress, decode from utf16 to utf8
+        // load whole file to RAM, decompress, decode from utf16 to utf8
         let mut raw_data = vec![0u8; file_length as usize];
         let mut total_bytes_read = 0;
         loop {
@@ -78,7 +79,12 @@ impl DgtFiles {
                 break;
             }
         }
-        // ToDo: make sure that length is dividable by 2
+        // UTF-16 can only be read from u16, but data can be only read in byte granularity, so
+        // reinterpreting memory is required (platform portability?)
+        if (raw_data.len() % 2) == 1 {
+            return Err(TransformationError::EncodingError("DGT input data \
+                    couldn't be decoded as UtF-16, uneven byte count.".into()));
+        }
         let raw_data = unsafe {
                 ::std::slice::from_raw_parts_mut(raw_data.as_mut_ptr() as *mut u16,
                      raw_data.len() / 2) };
@@ -181,14 +187,20 @@ impl Iterator for DgtFiles {
 pub struct Dgt;
 
 impl GetIterator for Dgt {
-    fn iter(&self, input: &Path, language: Option<String>) -> Box<Iterator<Item=Result<String>>> {
+    fn iter(&self, input: &Path, language: Option<Language>)
+            -> Box<Iterator<Item=Result<String>>> {
+        // get language and convert into 639-1
+        let lang = tryiter!(language.ok_or(TransformationError::InvalidInputArguments(
+                "No language supplied, which is required.".into())).into());
+        let lang = tryiter!(lang.to_639_1().ok_or(
+                    TransformationError::InvalidInputArguments(format!(
+                        "Requested language {} doesn't have a ISO 639-1 two-\
+                        letter language code", lang.to_639_3()))));
 
         Box::new(DgtFiles {
             zip_files: tryiter!(common::Files::new(input, "zip".into())),
             zip_archive: None, zip_entry: 0, zip_entry_count: 0,
-            requested_language: tryiter!(language.ok_or(
-                    TransformationError::InvalidInputArguments("No language \
-                        supplied, which is required.".into())).into()),
+            requested_language: lang.into(),
             iteration_started: false,
         })
     }
