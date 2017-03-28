@@ -55,6 +55,8 @@ fn parse_cmd(program: &str, args: &[String])
     opts.optopt("l", "logging_conf", "set output file name for the logging \
                 configuration (default log4rs.yaml)", "FILENAME");
     opts.optflag("h", "help", "print this help");
+    opts.optopt("o", "output-file", "OUTPUT_FILE",
+                r#"write to given output file, "text8" by default."#);
     opts.optopt("w", "wikipedia", "activate the Wikipedia corpus extractor \
                  and read Wikipedia articles from the specified bzipped XML \
                  article-only dump", "FILE");
@@ -78,9 +80,8 @@ fn parse_cmd(program: &str, args: &[String])
 
     // get language
     if matched.free.len() < 2 {
-        return Err(format!("The language to be parsed has to be given as a \
-                    three-letter ISO 639-3 code.\n{}",
-                           get_usage(program, opts)));
+        return Err(format!("LANGUAGE is a mandatory argument and has to be a \
+                ISO-639-3 code.\n{}", get_usage(program, opts)));
     } else {
         let lang = Language::from_639_3(&matched.free[1]).ok_or(format!(
                 "Expected a valid ISO 639-3 code as language id, found {}", matched.free[1]))?;
@@ -99,17 +100,6 @@ fn setup_logging(log_conf: &str) {
         warn!("Error while opening logging configuration {} for reading:\n      {}\
                 \n    Logging to stdout instead", log_conf, e);
     }
-}
-
-// Provide delegation to processing functionality
-//
-// Depending on the input source, the processing either consists of preprocessing, calling pandoc,
-// converting the output of Pandoc to plain text and do post-processing or for the simpler cases,
-// just do post-processing. The actual work is implemented in the corresponding input source, this
-// enum just delegates the work accordingly.
-enum Worker {
-    Pandoc(String, Box<Unformatter>),
-    PlainText(String),
 }
 
 
