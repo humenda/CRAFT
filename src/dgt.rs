@@ -112,7 +112,7 @@ impl DgtFiles {
                     if name.local_name == "tuv" {
                         if let Some(_ign) = attributes.iter().find(|attr|
                                attr.name.local_name == "lang" &&
-                               attr.value == requested_language) {
+                               attr.value.starts_with(requested_language.as_str())) {
                             requested_language_found = true;
                         }
                 },
@@ -200,7 +200,7 @@ impl GetIterator for Dgt {
         Box::new(DgtFiles {
             zip_files: tryiter!(common::Files::new(input, "zip".into())),
             zip_archive: None, zip_entry: 0, zip_entry_count: 0,
-            requested_language: lang.into(),
+            requested_language: lang.to_string().to_uppercase(),
             iteration_started: false,
         })
     }
