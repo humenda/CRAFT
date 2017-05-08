@@ -1,10 +1,8 @@
 /// This module parses the code civil in MarkDown format, as published by Steeve
 /// Morin. It has to be in a separate directory containing files ending on .md.
-use std::path::{Path};
 use pandoc;
 
-use common;
-use input_source::{GetIterator, Result, Unformatter};
+use input_source::{Result, Unformatter};
 
 
 /// Code Civil input parser
@@ -14,12 +12,6 @@ use input_source::{GetIterator, Result, Unformatter};
 /// files are loaded correctly.
 pub struct CodeCivil;
 
-impl GetIterator for CodeCivil {
-    fn iter(&self, input: &Path, _: Option<::isolang::Language>)
-            -> Box<Iterator<Item=Result<String>>> {
-        common::read_files(input.into(), "md".into())
-    }
-}
 
 impl Unformatter for CodeCivil {
     fn is_preprocessing_required(&self) -> bool {

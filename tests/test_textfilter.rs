@@ -1,11 +1,13 @@
 #[cfg(test)]
 extern crate craft;
 
+use std::collections::HashSet;
+
 use craft::*;
 use craft::textfilter::*;
 
 fn art2words(input: &str) -> String {
-    text2words(input.to_string())
+    text2words(input.to_string(), None)
 }
 
 #[test]
@@ -242,7 +244,7 @@ fn test_that_math_is_ignored() {
        {\"t\": \"Space\", \"c\": []},\
        {\"t\": \"Math\", \"c\": [{\"t\": \"DisplayMath\", \"c\": []},\
        \"b\"]}]}]]".into();
-    assert_eq!(textfilter::text2words(call_filter(json_str)), "and\n");
+    assert_eq!(textfilter::text2words(call_filter(json_str), None), "and\n");
 }
 
 
@@ -301,7 +303,7 @@ fn test_that_images_with_short_descriptions_are_ignored() {
       {\"t\":\"SoftBreak\",\"c\":[]},\
       {\"t\":\"Str\",\"c\":\"cow\"}]}]]\
       ".into();
-    assert_eq!(textfilter::text2words(call_filter(json_str)), "bla cow\n");
+    assert_eq!(textfilter::text2words(call_filter(json_str), None), "bla cow\n");
 }
 
 #[test]
@@ -472,7 +474,7 @@ fn test_that_table_is_ignored_in_output() {
        [{\"c\": [{\"c\": \"col1\", \"t\": \"Str\"}],\
        \"t\": \"Plain\"}]]]], \"t\": \"Table\"}]]".into();
        // filter this to get empty string
-    assert_eq!(textfilter::text2words(call_filter(json_str)), "");
+    assert_eq!(textfilter::text2words(call_filter(json_str), None), "");
 }
 
 

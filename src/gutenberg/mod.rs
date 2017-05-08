@@ -1,17 +1,9 @@
-use std::path::{Path};
-use super::input_source::*;
-use super::common;
 
+use super::input_source::{Result, TransformationError, Unformatter};
 use pandoc;
 
 pub struct Gutenberg;
 
-impl GetIterator for Gutenberg {
-    fn iter(&self, dst: &Path, _: Option<::isolang::Language>) ->
-                Box<Iterator<Item=Result<String>>> {
-        common::read_files(dst.into(), "txt".into())
-    }
-}
 
 impl Unformatter for Gutenberg {
     fn is_preprocessing_required(&self) -> bool {

@@ -8,6 +8,7 @@
 //! 2.  A function to strip white spaces, punctuation and surrounding characters, e.g. parenthesis.
 use json::{self, object, JsonValue};
 use pandoc;
+use std::collections::HashSet;
 
 use input_source::{Result, TransformationError};
 
@@ -211,6 +212,7 @@ pub fn stringify_text(pandoc_dump: String) -> Result<String> {
 
 // Test whether given character is a enclosing character like quotes or
 // parenthesis.
+#[inline]
 fn is_enclosing_character(c: char) -> bool {
     match c {
         '(' | ')' | '[' | ']' | '{' | '}' | '"' | '„' | '”' | '“' | '‚' 
@@ -219,6 +221,7 @@ fn is_enclosing_character(c: char) -> bool {
     }
 }
 
+#[inline]
 fn is_punctuation(c: char) -> bool {
     match c {
         '.' | ',' | ':' | ';' | '?' | '!' | '…' | '–' => true,
@@ -226,7 +229,8 @@ fn is_punctuation(c: char) -> bool {
     }
 }
 
-// test whether character is some kind of apostrophe (and similar)
+// test whether character is an apostrophe or alike
+#[inline]
 fn is_apostrophe(c: char) -> bool {
     match c {
         '\'' | '`' | '‚' | '‘' | '’' => true,
@@ -304,7 +308,9 @@ fn remove_punctuation(input: &mut String) {
 /// keeping words separated by a single space. An exception is the char RETURN_ESCAPE_SEQUENCE
 /// (surrounded by a space), which will enforce a line break.
 /// The returned String ends on `\n`, unless empty.
-pub fn text2words(input: String) -> String {
+pub fn text2words(input: String, stopwords: Option<HashSet<String>>) -> String {
+    // ToDo: make this more efficient
+    let stopwords = stopwords.unwrap_or(HashSet::new());
     let mut words = String::new();
 
     for word in input.split_whitespace() {
@@ -315,12 +321,11 @@ pub fn text2words(input: String) -> String {
             // remove punctuation, then  enclosing characters (quotations or parenthesis) and then
             // remove cpunctuation again
             let mut word = String::from(word);
-            //  remove_punctuation yields boolean telling whether punctuation was removed; Useful for determining sentences. Currently unused.
             remove_punctuation(&mut word);
             remove_enclosing_characters(&mut word);
             remove_punctuation(&mut word);
-            if word_should_be_included(&word) {
-                if words.len() != 0 && words.chars().last() != Some('\n') {
+            if word_should_be_included(&word) && !stopwords.contains(&word) {
+                if words.chars().last() != Some('\n') {
                     words.push(' ');
                 }
 

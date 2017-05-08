@@ -119,11 +119,12 @@ def main():
         tmpdest = os.path.join(tmpdir, 'tmp.tgz')
         print("Downloading %s to %s" % (link, tmpdest))
         common.download_to(link, tmpdest)
+        print("Processing data…")
         data = extract_data(lang, tmpdest)
         with open(target, 'a') as f:
             f.write('\n')
             f.write(strip_punctuation(data))
-        print("Extracted ile to", target)
+        print("Text written to",target)
     except:
         if tmpdir:
             shutil.rmtree(tmpdir)

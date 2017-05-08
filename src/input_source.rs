@@ -1,7 +1,6 @@
 use json;
 use std::error::Error;
 use std::io;
-use std::path::{Path};
 use pandoc;
 
 pub type Result<T> = ::std::result::Result<T, TransformationError>;
@@ -100,19 +99,11 @@ impl From<::zip::result::ZipError> for TransformationError {
 
 
 /// Return the corresponding iterator for a given input source.
-pub trait GetIterator {
-    /// Return an iterator which can iterate over the entities of an input source.
-    ///
-    /// The last parameter identifies the language to be parsed. This is usually
-    /// only considered for multi-language corpora.
-    fn iter(&self, &Path, Option<::isolang::Language>) -> Box<Iterator<Item=Result<String>>>;
-}
-
 /// Strip formatting from a document
 ///
 /// This trait provides methods to remove formatting from input sources. It is rather specific to
 /// Pandoc, because this is used to transform concrete formats into an abstract document AST.
-pub trait Unformatter: GetIterator {
+pub trait Unformatter {
     /// Reports whether preprocessing is required for this format.
     fn is_preprocessing_required(&self) -> bool;
 

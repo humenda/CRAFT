@@ -10,12 +10,12 @@ pub struct Europeana;
 
 
 /// Iterator, which parses the content out of a JSON file
-struct Articles {
+pub struct Articles {
     paths: Box<Iterator<Item=Result<String>>>,
 }
 
 impl Articles {
-    fn new(top_level: &Path) -> Self {
+    pub fn new(top_level: &Path) -> Self {
         Articles { paths: common::read_files(top_level.into(), "json".into()) }
     }
 }
@@ -56,10 +56,4 @@ impl Iterator for Articles {
     }
 }
 
-impl GetIterator for Europeana {
-    fn iter(&self, input: &Path, _: Option<::isolang::Language>)
-            -> Box<Iterator<Item=Result<String>>> {
-        Box::new(Articles::new(input))
-    }
-}
 

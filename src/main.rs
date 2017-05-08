@@ -7,6 +7,7 @@
 /// The crafted binary has the following exit codes:
 ///
 /// - 1: invalid cmd argument
+/// - 2: invalid file name
 /// - 22: - output not writable
 /// - 23: error while writing to output
 
@@ -22,10 +23,24 @@ use isolang::Language;
 use std::env;
 use std::fs::File;
 use std::io::Write;
-use std::path::Path;
+use std::path::PathBuf;
 
 use craft::*;
-use craft::input_source::{GetIterator, Unformatter};
+use craft::input_source::{self, Unformatter};
+
+macro_rules! trylog(
+    ($thing:expr, $msg:expr, $ret:expr) => (match $thing {
+        Ok(x) => x,
+        Err(ref e) => {
+            error_exit(&format!("{}; {}", $msg, e), $ret);
+            unreachable!();
+        }
+    };);
+    ($thing:expr, $ret:expr) => (match $thing {
+        Ok(e) => e,
+        Err(ref e) => error_exit(format!("{}", e), $ret),
+    });
+);
 
 
 // get program usage
@@ -92,7 +107,7 @@ fn parse_cmd(program: &str, args: &[String])
 }
 
 fn error_exit(msg: &str, exit_code: i32) {
-    println!("{}", msg);
+    error!("{}", msg);
     ::std::process::exit(exit_code);
 }
 
@@ -104,27 +119,12 @@ fn setup_logging(log_conf: &str) {
     }
 }
 
-// Provide delegation to processing functionality
-//
-// Depending on the input source, the processing either consists of preprocessing, calling pandoc,
-// converting the output of Pandoc to plain text and do post-processing or for the simpler cases,
-// just do post-processing. The actual work is implemented in the corresponding input source, this
-// enum just delegates the work accordingly.
-enum Worker {
-    Pandoc(String, Box<Unformatter>),
-    PlainText(String),
-}
-
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let program = &args[0];
-    let opts = parse_cmd(program, &args[0..]);
-    if opts.is_err() {
-        error_exit(&format!("Error: {}", &opts.err().unwrap()), 1);
-        return; // make compiler happy
-    }
-    let (opts, language) = opts.unwrap(); // safe now
+    let (opts, language) = trylog!(parse_cmd(program, &args[1..]),
+        "Errorneous command line", 1);
 
     match opts.opt_present("l") {
         true => setup_logging(&opts.opt_str("l").unwrap()),
@@ -132,144 +132,92 @@ fn main() {
     }
 
     let output_name = opts.opt_str("o").unwrap_or("text8".into());
-    let file_creation_result = File::create(&output_name);
-    if file_creation_result.is_err() {
-        error!("error while opening {} for writing: {}", output_name,
-               file_creation_result.err().unwrap());
-    
-        error_exit("please make sure that the output file is writable", 22);
-    } else {
-        let mut result_file = file_creation_result.unwrap(); // safe now
-
-        if let Some(wp_path) = opts.opt_str("w") {
-            let input_path = Path::new(&wp_path);
-            info!("extracting Wikipedia articles from {}", input_path.to_str().unwrap());
-            let wikipedia = Box::new(wikipedia::Wikipedia);
-            plain_text_with_pandoc(input_path, wikipedia, &mut result_file);
-        }
-        if let Some(gb_path) = opts.opt_str("g") {
-            let input_path = Path::new(&gb_path);
-            info!("Extracting Gutenberg books from {}", input_path.to_str().unwrap());
-            let gutenberg = Box::new(gutenberg::Gutenberg);
-            plain_text_with_pandoc(input_path, gutenberg, &mut result_file);
-        }
-        if let Some(europeana_path) = opts.opt_str("e") {
-            let input_path = Path::new(&europeana_path);
-            info!("Extracting news paper articles from {}", input_path.to_str().unwrap());
-            let europeana = Box::new(europeana::Europeana);
-            plain_text(input_path, europeana, &mut result_file, &language);
-        }
-        if let Some(cc_path) = opts.opt_str("c") {
-            let input_path = Path::new(&cc_path);
-            info!("Extracting the code civil from {}", input_path.to_str().unwrap());
-            let codecivil = Box::new(codecivil::CodeCivil);
-            plain_text_with_pandoc(input_path, codecivil, &mut result_file);
-        }
-        if let Some(dgt_path) = opts.opt_str("d") {
-            info!("extracting EU-DGT notes from {}", dgt_path);
-            let input_path = Path::new(&dgt_path);
-            let dgt = Box::new(dgt::Dgt);
-            plain_text(input_path, dgt, &mut result_file, &language);
-        }
-    }
-}
-
-
-// This macro matches on a result; if `Ok()`, take it, else log the error output and increment the
-// given error counter.
-macro_rules! use_or_skip(
-    ($matchon:expr, $inc_on_error:tt, $warn_format_str:tt,
-           $($warn_args:tt),*) => (match $matchon {
-        Ok(t) => t,
+    let mut result_file = match File::create(&output_name) {
         Err(e) => {
-            // print custom error message and include error in the logs, too
-            $inc_on_error += 1;
-            debug!(concat!($warn_format_str, "\n    Error: {}"),
-                $($warn_args),*, e);
-            continue;
-        }
-    })
-);
+                error!("error while opening {} for writing: {}", output_name, e);
+                error_exit("please make sure that the output file is writable", 22);
+                unreachable!();
+            },
+        Ok(f) => f
+    };
 
-/// Strip all formatting from a text
-///
-/// This function utilises pandoc and punctuation removing rules to get only plain text out of a
-/// formatted document.
-fn plain_text_with_pandoc<Source: GetIterator + Unformatter>(input: &Path,
-                  input_source: Box<Source>, result_file: &mut File) {
-    let mut entities_read = 0; // keep it external to for loop to retrieve later
-    let mut errorneous_articles = 0;
-
-    // an entity can be either an article, a book or similar, it's the smallest unit of processing;
-    // the second parameter to iter is the language to be parsed (this is not supported for this
-    // kind of input sources, yet)
-    for entity in input_source.iter(input, None) {
-        let mut entity = use_or_skip!(entity, errorneous_articles,
-            "unable to retrieve entity {} from input source", entities_read);
-        debug!("Starting to process entity {} with length {}", entities_read, entity.len());
-
-        // preprocessing might remove formatting which Pandoc cannot handle
-        if input_source.is_preprocessing_required() {
-            entity = use_or_skip!(input_source.preprocess(&entity),
-                errorneous_articles, "unable to preprocess entity {}",
-                entities_read);
-        }
-
-        // retrieve a JSON representation of the document AST
-        let json_ast = use_or_skip!(
-                textfilter::call_pandoc(input_source.get_input_format(), entity),
-                errorneous_articles,
-                "entity {} couldn't be parsed by pandoc", entities_read);
-
-        // parse the text-only bits from the document
-        entity = use_or_skip!(textfilter::stringify_text(json_ast), errorneous_articles,
-            "unable to extract plain text from Pandoc document AST for entity {}", entities_read);
-
-        // strip white space, punctuation, non-character word-alike sequences, etc; keep only
-        // single-space separated words (exception are line breaks for context conservation, see
-        // appropriate module documentation)
-        let stripped_words = textfilter::text2words(entity);
-        if let Err(msg) = result_file.write_all(stripped_words.as_bytes()) {
-            error!("could not write to output file: {}", msg);
-            error_exit("Exiting", 23);
-        }
-        entities_read += 1;
-
-        if (entities_read % 500) == 0 {
-            info!("{} articles parsed, {} errorneous articles skipped.",
-                entities_read, errorneous_articles);
-        }
+    if let Some(wp_path) = opts.opt_str("w") {
+        info!("extracting Wikipedia articles from {}", wp_path);
+        let wp_path = PathBuf::from(wp_path);
+        extract_text(wikipedia::ArticleParser::new(
+            trylog!(File::open(wp_path), "Could not open input file", 1)),
+                Some(Box::new(wikipedia::Wikipedia)),
+                &mut result_file);
     }
-
-    info!("{} articles read, {} were errorneous (and could not be included)",
-        entities_read, errorneous_articles);
+    if let Some(gb_path) = opts.opt_str("g") {
+        info!("Extracting Gutenberg books from {}", gb_path);
+        extract_text(common::read_files(gb_path.into(), "txt".into()),
+            Some(Box::new(gutenberg::Gutenberg)), &mut result_file);
+    }
+    if let Some(europeana_path) = opts.opt_str("e") {
+        info!("Extracting news paper articles from {}", europeana_path);
+        let input_path = PathBuf::from(&europeana_path);
+        extract_text(europeana::Articles::new(&input_path), None,
+            &mut result_file);
+    }
+    if let Some(cc_path) = opts.opt_str("c") {
+        info!("Extracting the code civil from {}", cc_path);
+        extract_text(common::read_files(cc_path.into(), "md".into()),
+            Some(Box::new(codecivil::CodeCivil)), &mut result_file);
+    }
+    if let Some(dgt_path) = opts.opt_str("d") {
+        info!("extracting EU-DGT notes from {}", dgt_path);
+        let dgt_path = PathBuf::from(dgt_path);
+        extract_text(trylog!(dgt::DgtFiles::new(&dgt_path, language.clone()), 
+                "Unable to read from given directory", 2),
+            None, &mut result_file);
+    }
 }
 
-/// Strip all formatting from a text
+/// Strip all formatting from text
 ///
 /// This function utilises punctuation removing rules to get only plain text out of a document with
-/// no formatting.
-fn plain_text<Source: GetIterator>(input: &Path, input_source: Box<Source>,
-           result_file: &mut File, language: &Language) {
+/// no formatting. If an unformatter is given, it will utilize Pandoc to extract the plain text
+/// portions, before removing punctuation and stop words.
+fn extract_text<Source: Iterator<Item=input_source::Result<String>>>(
+        input_source: Source, unfmt: Option<Box<Unformatter>>,
+        result_file: &mut File) {
     let mut entities_read = 0; // keep it external to for loop to retrieve later
     let mut errorneous_articles = 0;
 
     // an entity can be either an article, a book or similar, it's the smallest unit of processing
-    for entity in input_source.iter(input, Some(*language)) {
-        let entity = use_or_skip!(entity, errorneous_articles,
-            "unable to retrieve entity {} from input source", entities_read);
+    for entity in input_source {
+        let mut entity = match entity {
+            Ok(t) => t,
+            Err(e) => {
+                errorneous_articles += 1;
+                debug!("unable to retrieve entity {} from input source; Error: {}",
+                       entities_read, e);
+                continue;
+            }
+        };
+
+        if let Some(ref unfmt) = unfmt {
+            entity = match process_formatting(&**unfmt, entity) {
+                Ok(x) => x,
+                Err(e) => {
+                    error!("Error while preprocessing entity {}: {}",
+                               entities_read, e);
+                    return;
+                }
+            };
+        }
 
         // strip white space, punctuation, non-character word-alike sequences, etc; keep only
         // single-space separated words (exception are line breaks for context conservation, see
         // appropriate module documentation)
-        let stripped_words = textfilter::text2words(entity);
+        let stripped_words = textfilter::text2words(entity, None);
         if let Err(msg) = result_file.write_all(stripped_words.as_bytes()) {
             error!("could not write to output file: {}", msg);
             error_exit("Exiting", 23);
         }
         entities_read += 1;
 
-        
         if (entities_read % 500) == 0 {
             info!("{} articles parsed, {} errorneous articles skipped.",
                 entities_read, errorneous_articles);
@@ -278,5 +226,21 @@ fn plain_text<Source: GetIterator>(input: &Path, input_source: Box<Source>,
 
     info!("{} articles read, {} were errorneous (and could not be included)",
         entities_read, errorneous_articles);
+}
+
+/// Remove formatting using pandoc
+fn process_formatting<'a>(unfmt: &'a Unformatter, mut doc: String)
+        -> input_source::Result<String> {
+    // remove formatting which pandoc cannot handle (corner cases of incomplete
+    // Pandoc readers)
+    if unfmt.is_preprocessing_required() {
+        doc = unfmt.preprocess(&doc)?
+    }
+
+    // retrieve a JSON representation of the document AST
+    let json_ast = textfilter::call_pandoc(unfmt.get_input_format(), doc)?;
+
+    // parse the text-only bits from the document
+    textfilter::stringify_text(json_ast)
 }
 

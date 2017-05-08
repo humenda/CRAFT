@@ -18,13 +18,12 @@
 use isolang::Language;
 use std::fs;
 use std::io::{Read};
-use std::iter;
 use std::path::{Path};
 use xml::reader::{EventReader, XmlEvent};
 use zip::read::{ZipArchive};
 
 use common;
-use input_source::{GetIterator, Result, TransformationError};
+use input_source::{Result, TransformationError};
 use textfilter;
 
 // maximum buffer size of a String buffer parsed from XML
@@ -36,7 +35,7 @@ static MAX_BUFFER_SIZE: usize = 1048576; // 1M
 // This iterator iterates over all *.zip files, opens them and within each zip archive, iterates
 // over all *.tmx files. It decompreeesses each .tmx file and parses it with the XML event parser,
 // storing the result in  a String and returning that.
-struct DgtFiles {
+pub struct DgtFiles {
     /// emit one path at a time from given directory
     zip_files: common::Files,
     /// current zip archive
@@ -52,6 +51,21 @@ struct DgtFiles {
 }
 
 impl DgtFiles {
+    pub fn new(input: &Path, language: Language) -> Result<DgtFiles> {
+        // get language and convert into 639-1
+        let lang = language.to_639_1().ok_or(
+                TransformationError::InvalidInputArguments(format!(
+                        "Requested language {} doesn't have a ISO 639-1 two-\
+                        letter language code", language.to_639_3())))?;
+
+        Ok(DgtFiles {
+            zip_files: common::Files::new(input, "zip".into())?,
+           zip_archive: None, zip_entry: 0, zip_entry_count: 0,
+           requested_language: lang.to_string().to_uppercase(),
+           iteration_started: false,
+        })
+    }
+
     // this method opens the next zip archive and saves it into self.zip_archive
     fn get_next_zip_archive(&mut self) -> Option<Result<()>> {
         let fpath = get!(self.zip_files.next());
@@ -178,31 +192,6 @@ impl Iterator for DgtFiles {
     // get the plain text from the next parsed .tmx file, contained in one of    the zip archives
     fn next(&mut self) -> Option<Self::Item> {
         self.get_next_chunk()
-    }
-}
-
-
-
-/// Input source for DGT-TM: European Translation Memories, [see  module docs](index.html)
-pub struct Dgt;
-
-impl GetIterator for Dgt {
-    fn iter(&self, input: &Path, language: Option<Language>)
-            -> Box<Iterator<Item=Result<String>>> {
-        // get language and convert into 639-1
-        let lang = tryiter!(language.ok_or(TransformationError::InvalidInputArguments(
-                "No language supplied, which is required.".into())).into());
-        let lang = tryiter!(lang.to_639_1().ok_or(
-                    TransformationError::InvalidInputArguments(format!(
-                        "Requested language {} doesn't have a ISO 639-1 two-\
-                        letter language code", lang.to_639_3()))));
-
-        Box::new(DgtFiles {
-            zip_files: tryiter!(common::Files::new(input, "zip".into())),
-            zip_archive: None, zip_entry: 0, zip_entry_count: 0,
-            requested_language: lang.to_string().to_uppercase(),
-            iteration_started: false,
-        })
     }
 }
 

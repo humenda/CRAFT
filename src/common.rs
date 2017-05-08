@@ -32,7 +32,7 @@ macro_rules! tryiter(
     ($e:expr) => (
         match $e {
             Ok(d) => d,
-            Err(e) => return Box::new(iter::once(Err(From::from(e)))),
+            Err(e) => return iter::once(Err(From::from(e))),
         }
     )
 );
