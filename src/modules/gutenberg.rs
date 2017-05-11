@@ -1,5 +1,5 @@
 
-use super::input_source::{Result, TransformationError, Unformatter};
+use super::super::input_source::{Result, TransformationError, Unformatter};
 use pandoc;
 
 pub struct Gutenberg;

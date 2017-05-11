@@ -25,7 +25,8 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
-use craft::*;
+use craft::{common, textfilter};
+use craft::modules::*;
 use craft::input_source::{self, Unformatter};
 
 macro_rules! trylog(
