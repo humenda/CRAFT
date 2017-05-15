@@ -1,7 +1,7 @@
 #[cfg(test)]
 extern crate craft;
 
-use craft::gutenberg::*;
+use craft::modules::gutenberg::*;
 use craft::input_source::*;
 
 fn preproc(input: &str) -> Result<String> {

@@ -10,16 +10,23 @@
 /// - 2: invalid file name
 /// - 22: - output not writable
 /// - 23: error while writing to output
+/// - 24: error in configuration file
 
 extern crate craft;
-extern crate getopts;
 extern crate isolang;
 #[macro_use]
 extern crate log;
 extern crate log4rs;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_yaml;
+extern crate textwrap;
 
-use getopts::Options;
 use isolang::Language;
+use log4rs::config::Config;
+use log4rs::file::{Deserializers, RawConfig};
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::Write;
@@ -45,133 +52,201 @@ macro_rules! trylog(
 
 
 // get program usage
-fn get_usage(pname: &str, opts: Options) -> String {
-    let description = "Crafted parses various input sources to produce a word corpus, which can then be \
-        \nused by Word2vec. The output is written to a file called text8, which is over- \
-        \nwritten on each launch.\n \
-        The language for parsing has to be given as ISO 639-3 three-letter language code.\n";
-    let usage = format!("Usage: {} [options, ...] LANGUAGE\n\n{}\n", pname, description);
-    opts.usage(&usage)
-}
-
 /// Parse cmd options, return matches and input language
 fn parse_cmd(program: &str, args: &[String])
-        -> Result<(getopts::Matches, ::isolang::Language), String> {
-    let mut opts = Options::new();
-    opts.optopt("c", "codecivil", "activate code civil extractor, parsing \
-                French laws from MarkDown files", "DIRECTORY");
+        -> Result<(PathBuf, PathBuf), String> {
+    let description: &'static str = "Crafted parses various input sources to \
+        produce a word corpus, consisting only of words and numbers, with all \
+        formatting, punctuation and special characters removed. \
+        The text is written to a plain text file. If no output file is \
+        specified, the file will be called text8. Careful, this might \
+        overwrite old processing results.";
 
-    opts.optopt("e", "europeana", "activate europeana extractor for parsing news paper dumps",
-                "DIRECTORY");
-    opts.optopt("d", "eu-dgt", "activate EU-DGT (translation memory) \
-                parser for the data of the EU DGT data in zip format",
-                "DIRECTORY");
-    opts.optopt("g", "gutenberg", "activate the Gutenberg corpus extractor \
-                and read Gutenberg books from the specified path", "DIRECTORY");
-    opts.optopt("l", "logging_conf", "set output file name for the logging \
-                configuration (default log4rs.yaml)", "FILENAME");
-    opts.optflag("h", "help", "print this help");
-    opts.optopt("o", "output-file", "OUTPUT_FILE",
-                r#"write to given output file, "text8" by default."#);
-
-    opts.optopt("w", "wikipedia", "activate the Wikipedia corpus extractor \
-                 and read Wikipedia articles from the specified bzipped XML \
-                 article-only dump", "FILE");
-
-    let matched = opts.parse(args);
-    if matched.is_err() {
-        return Err(format!("{}\n{}", matched.err().unwrap(),
-                get_usage(program, opts)));
-    }
-    let matched = matched.unwrap();
-    if matched.opt_present("h") {
-        println!("{}", get_usage(program, opts));
-        ::std::process::exit(0);
-    }
-    if !matched.opt_present("w") && !matched.opt_present("g") && !matched.opt_present("e") &&
-        !matched.opt_present("c") && !matched.opt_present("d") &&
-        !matched.opt_present("h") {
-        return Err(format!("At least one output generator needs to be given.\n{}",
-                           get_usage(program, opts)));
-    }
-
-    // get language
-    if matched.free.len() < 2 {
-        return Err(format!("The language to be parsed has to be given as a \
-                    three-letter ISO 639-3 code.\n{}",
-                           get_usage(program, opts)));
-    } else {
-        let lang = Language::from_639_3(&matched.free[1]).ok_or(format!(
-                "Expected a valid ISO 639-3 code as language id, found {}", matched.free[1]))?;
-        Ok((matched, lang))
+    macro_rules! exists(
+    ($thing:expr) => ({
+        let p = PathBuf::from($thing.as_str());
+        match p.exists() {
+            true => p,
+            false => return Err(format!("Given path {} doesn't exist.", $thing)),
+        }
+    }));
+    match args.len() {
+        1 => {
+            if args[0] == "-h" || args[0] == "--help" {
+                println!("Usage: {} <CONFIGURATION_YAML> [OUTPUT_FILE]\n\
+                            {}", program, textwrap::fill(description, 80));
+                ::std::process::exit(0);
+            } else {
+                Ok((exists!(args[0]), PathBuf::from("text8")))
+            }
+        },
+        2 => Ok((exists!(args[0].clone()), PathBuf::from(args[1].clone()))),
+        _ => {
+            println!("Wrong number of command line arguments.\n\
+                Usage: {} <CONFIGURATION_YAML> [OUTPUT_FILE]\n\
+                {}", program, textwrap::fill(description, 80));
+            ::std::process::exit(1);
+        },
     }
 }
 
+#[inline]
 fn error_exit(msg: &str, exit_code: i32) {
     error!("{}", msg);
     ::std::process::exit(exit_code);
 }
 
-fn setup_logging(log_conf: &str) {
-    if let Err(e) = log4rs::init_file(log_conf, Default::default()) {
-        // ToDo: doesn't work, manual setup required
-        warn!("Error while opening logging configuration {} for reading:\n      {}\
-                \n    Logging to stdout instead", log_conf, e);
-    }
+#[derive(Deserialize)]
+struct LanguageCfg {
+    wikipedia: Option<PathBuf>,
+    gutenberg: Option<PathBuf>,
+    dgt: Option<PathBuf>,
+    europeana: Option<PathBuf>,
+    codecivil: Option<PathBuf>,
+    stopwords: Option<String>,
 }
 
+impl LanguageCfg {
+    // find a better way to get string representation
+    fn get_active_modules(&self) -> String {
+        let mut active = String::new();
+        {
+            let mut add = |x| match active.len() {
+                0 => active.push_str(x),
+                _ => {
+                    active.push_str(", ");
+                    active.push_str(x);
+                }
+            };
+            if self.wikipedia.is_some() {
+                add("Wikipedia");
+            }
+            if self.gutenberg.is_some() {
+                add("Gutenberg");
+            }
+            if self.dgt.is_some() {
+                add("DGT (Translation Memories)");
+            }
+            if self.europeana.is_some() {
+                add("Europeana");
+            }
+            if self.codecivil.is_some() {
+                add("Code Civil");
+            }
+        }
+        active
+    } 
+}
+
+#[derive(Deserialize)]
+struct JointConfig {
+    craft: HashMap<String, LanguageCfg>,
+    log4rs: log4rs::file::RawConfig,
+}
+
+fn setup_config(log_conf: &PathBuf) -> HashMap<Language, LanguageCfg> {
+    let cfg = ::serde_yaml::from_reader::<File, JointConfig>(
+        File::open(log_conf).expect("Couldn't open log file for reading"))
+        .unwrap(); // ToDo
+    let ds = log4rs::file::Deserializers::new();
+    let log_cfg = deserialize(&cfg.log4rs, &ds);
+    log4rs::init_config(log_cfg).unwrap();
+
+    // convert all keys to proper iso language objects
+    let mut config = HashMap::new();
+    for (key, value) in cfg.craft {
+        match Language::from_639_3(&key) {
+            Some(lang) => config.insert(lang, value),
+            None => {
+                error_exit(&format!("Invalid language in configuration: {}",
+                        key), 24);
+                unreachable!();
+            }
+        };
+    }
+    config
+}
+
+// 1-> 1 fork from log4rs, it wasn't public
+fn deserialize(config: &RawConfig, deserializers: &Deserializers) -> Config {
+    let (appenders, errors) = config.appenders_lossy(deserializers);
+    for error in &errors {
+        handle_error(error);
+    }
+
+    let (config, errors) = Config::builder()
+        .appenders(appenders)
+        .loggers(config.loggers())
+        .build_lossy(config.root());
+    for error in &errors {
+        handle_error(error);
+    }
+
+    config
+}
+
+fn handle_error<E: ::std::error::Error + ?Sized>(e: &E) {
+    let _ = writeln!(::std::io::stderr(), "log4rs: {}", e);
+}
+ 
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let program = &args[0];
-    let (opts, language) = trylog!(parse_cmd(program, &args[1..]),
+
+    let (config_path, output_path) = trylog!(parse_cmd(&args[0], &args[1..]),
         "Errorneous command line", 1);
 
-    match opts.opt_present("l") {
-        true => setup_logging(&opts.opt_str("l").unwrap()),
-        false => setup_logging("log4rs.yaml"),
-    }
+    let config = setup_config(&config_path);
 
-    let output_name = opts.opt_str("o").unwrap_or("text8".into());
-    let mut result_file = match File::create(&output_name) {
+    let mut result_file = match File::create(&output_path) {
         Err(e) => {
-                error!("error while opening {} for writing: {}", output_name, e);
+                error!("error while opening {} for writing: {}",
+                       output_path.to_str().unwrap(), e);
                 error_exit("please make sure that the output file is writable", 22);
                 unreachable!();
             },
         Ok(f) => f
     };
 
-    if let Some(wp_path) = opts.opt_str("w") {
-        info!("extracting Wikipedia articles from {}", wp_path);
-        let wp_path = PathBuf::from(wp_path);
-        extract_text(wikipedia::ArticleParser::new(
-            trylog!(File::open(wp_path), "Could not open input file", 1)),
-                Some(Box::new(wikipedia::Wikipedia)),
+    for (lang, lconf) in config {
+        info!("processing {}, active modules: {}", lang.to_name(),
+            lconf.get_active_modules());
+        if let Some(wp_path) = lconf.wikipedia {
+            info!("extracting Wikipedia articles from {}",
+                  wp_path.to_string_lossy());
+            let wp_path = PathBuf::from(wp_path);
+            extract_text(wikipedia::ArticleParser::new(
+                    trylog!(File::open(wp_path), "Could not open input file", 1)),
+                    Some(Box::new(wikipedia::Wikipedia)),
+                    &mut result_file);
+        }
+        if let Some(gb_path) = lconf.gutenberg {
+            info!("Extracting Gutenberg books from {}",
+                  gb_path.to_string_lossy());
+            extract_text(common::read_files(gb_path.into(), "txt".into()),
+                Some(Box::new(gutenberg::Gutenberg)), &mut result_file);
+        }
+        if let Some(europeana_path) = lconf.europeana {
+            info!("Extracting news paper articles from {}",
+                  europeana_path.to_string_lossy());
+            let input_path = PathBuf::from(&europeana_path);
+            extract_text(europeana::Articles::new(&input_path), None,
                 &mut result_file);
-    }
-    if let Some(gb_path) = opts.opt_str("g") {
-        info!("Extracting Gutenberg books from {}", gb_path);
-        extract_text(common::read_files(gb_path.into(), "txt".into()),
-            Some(Box::new(gutenberg::Gutenberg)), &mut result_file);
-    }
-    if let Some(europeana_path) = opts.opt_str("e") {
-        info!("Extracting news paper articles from {}", europeana_path);
-        let input_path = PathBuf::from(&europeana_path);
-        extract_text(europeana::Articles::new(&input_path), None,
-            &mut result_file);
-    }
-    if let Some(cc_path) = opts.opt_str("c") {
-        info!("Extracting the code civil from {}", cc_path);
-        extract_text(common::read_files(cc_path.into(), "md".into()),
-            Some(Box::new(codecivil::CodeCivil)), &mut result_file);
-    }
-    if let Some(dgt_path) = opts.opt_str("d") {
-        info!("extracting EU-DGT notes from {}", dgt_path);
-        let dgt_path = PathBuf::from(dgt_path);
-        extract_text(trylog!(dgt::DgtFiles::new(&dgt_path, language.clone()), 
+        }
+        if let Some(cc_path) = lconf.codecivil {
+            info!("Extracting the code civil from {}",
+                  cc_path.to_string_lossy());
+            extract_text(common::read_files(cc_path.into(), "md".into()),
+                Some(Box::new(codecivil::CodeCivil)), &mut result_file);
+        }
+        if let Some(dgt_path) = lconf.dgt {
+            info!("extracting EU-DGT Translation Memories from {}",
+                  dgt_path.to_string_lossy());
+            let dgt_path = PathBuf::from(dgt_path);
+            extract_text(trylog!(dgt::DgtFiles::new(&dgt_path, lang.clone()), 
                 "Unable to read from given directory", 2),
-            None, &mut result_file);
+                None, &mut result_file);
+        }
     }
 }
 

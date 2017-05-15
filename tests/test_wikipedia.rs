@@ -1,7 +1,7 @@
 #[cfg(test)]
 extern crate craft;
 
-use craft::wikipedia::*;
+use craft::modules::wikipedia::*;
 
 fn preproc(input: &str) -> String {
     let preproc = MediawikiPreprocessor::new(input);

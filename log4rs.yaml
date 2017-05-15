@@ -1,20 +1,22 @@
 # This file can be copied to target/debug or target/release and will be picked
 # automatically, if the name is preserved.
-appenders:
-  file:
-    kind: file
-    path: "crafted.log"
-    encoder:
-        pattern: "{d(%Y/%m/%d %H:%M:%S%.3f)}: {m}{n}"
-  console:
-    kind: console
-    encoder:
-      pattern: "{m}{n}"
-    filters:
-    - kind: threshold
-      level: info
-root:
-  level: debug
+title: test
+log4rs:
   appenders:
-  - file
-  - console
+    file:
+      kind: file
+      path: "crafted.log"
+      encoder:
+          pattern: "{d(%Y/%m/%d %H:%M:%S%.3f)}: {m}{n}"
+    console:
+      kind: console
+      encoder:
+        pattern: "{m}{n}"
+      filters:
+      - kind: threshold
+        level: info
+  root:
+    level: debug
+    appenders:
+    - file
+    - console
