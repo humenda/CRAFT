@@ -26,7 +26,7 @@ extern crate textwrap;
 use isolang::Language;
 use log4rs::config::Config;
 use log4rs::file::{Deserializers, RawConfig};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs::File;
 use std::io::Write;
@@ -218,26 +218,32 @@ fn main() {
             extract_text(wikipedia::ArticleParser::new(
                     trylog!(File::open(wp_path), "Could not open input file", 1)),
                     Some(Box::new(wikipedia::Wikipedia)),
+                    &lconf.stopwords,
                     &mut result_file);
         }
         if let Some(gb_path) = lconf.gutenberg {
             info!("Extracting Gutenberg books from {}",
                   gb_path.to_string_lossy());
             extract_text(common::read_files(gb_path.into(), "txt".into()),
-                Some(Box::new(gutenberg::Gutenberg)), &mut result_file);
+                Some(Box::new(gutenberg::Gutenberg)),
+                &lconf.stopwords,
+                &mut result_file);
         }
         if let Some(europeana_path) = lconf.europeana {
             info!("Extracting news paper articles from {}",
                   europeana_path.to_string_lossy());
             let input_path = PathBuf::from(&europeana_path);
             extract_text(europeana::Articles::new(&input_path), None,
+                &lconf.stopwords,
                 &mut result_file);
         }
         if let Some(cc_path) = lconf.codecivil {
             info!("Extracting the code civil from {}",
                   cc_path.to_string_lossy());
             extract_text(common::read_files(cc_path.into(), "md".into()),
-                Some(Box::new(codecivil::CodeCivil)), &mut result_file);
+                Some(Box::new(codecivil::CodeCivil)),
+                &lconf.stopwords,
+                &mut result_file);
         }
         if let Some(dgt_path) = lconf.dgt {
             info!("extracting EU-DGT Translation Memories from {}",
@@ -245,7 +251,8 @@ fn main() {
             let dgt_path = PathBuf::from(dgt_path);
             extract_text(trylog!(dgt::DgtFiles::new(&dgt_path, lang.clone()), 
                 "Unable to read from given directory", 2),
-                None, &mut result_file);
+                None, &lconf.stopwords,
+                &mut result_file);
         }
     }
 }
@@ -257,6 +264,7 @@ fn main() {
 /// portions, before removing punctuation and stop words.
 fn extract_text<Source: Iterator<Item=input_source::Result<String>>>(
         input_source: Source, unfmt: Option<Box<Unformatter>>,
+        stopwords: &Option<String>,
         result_file: &mut File) {
     let mut entities_read = 0; // keep it external to for loop to retrieve later
     let mut errorneous_articles = 0;
@@ -287,7 +295,11 @@ fn extract_text<Source: Iterator<Item=input_source::Result<String>>>(
         // strip white space, punctuation, non-character word-alike sequences, etc; keep only
         // single-space separated words (exception are line breaks for context conservation, see
         // appropriate module documentation)
-        let stripped_words = textfilter::text2words(entity, None);
+        let stripped_words = match stopwords {
+            &Some(ref words) => textfilter::text2words(entity, Some(words
+                    .split(",").map(|x| x.trim().into()).collect::<HashSet<String>>())),
+            &None => textfilter::text2words(entity, None),
+        };
         if let Err(msg) = result_file.write_all(stripped_words.as_bytes()) {
             error!("could not write to output file: {}", msg);
             error_exit("Exiting", 23);

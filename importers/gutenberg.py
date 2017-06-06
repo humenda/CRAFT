@@ -255,7 +255,7 @@ if __name__ == '__main__':
         print(("Error: not enough parameters\nUsage: %s <language> <path>\n\n"
             "<language> can be any language from the Gutenberg project. It has "
             "to be in English. Examples: English, French, German\n"
-            "<path> is the output directory with all text files."))
+            "<path> is the output directory with all text files.") % sys.argv[0])
         sys.exit(1)
     else:
         main(sys.argv[1], sys.argv[2])
