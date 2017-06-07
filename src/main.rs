@@ -17,6 +17,7 @@ extern crate isolang;
 #[macro_use]
 extern crate log;
 extern crate log4rs;
+extern crate shellexpand;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -58,9 +59,8 @@ fn parse_cmd(program: &str, args: &[String])
     let description: &'static str = "Crafted parses various input sources to \
         produce a word corpus, consisting only of words and numbers, with all \
         formatting, punctuation and special characters removed. \
-        The text is written to a plain text file. If no output file is \
-        specified, the file will be called text8. Careful, this might \
-        overwrite old processing results.";
+        The result is written to the specified output file. If not done \
+        carefully, it might overwrite processing results.";
 
     macro_rules! exists(
     ($thing:expr) => ({
@@ -77,13 +77,16 @@ fn parse_cmd(program: &str, args: &[String])
                             {}", program, textwrap::fill(description, 80));
                 ::std::process::exit(0);
             } else {
-                Ok((exists!(args[0]), PathBuf::from("text8")))
+                println!("Not enough arguments.");
+                println!("Usage: {} <CONFIGURATION_YAML> [OUTPUT_FILE]\n\
+                            {}", program, textwrap::fill(description, 80));
+                ::std::process::exit(1);
             }
         },
         2 => Ok((exists!(args[0].clone()), PathBuf::from(args[1].clone()))),
         _ => {
             println!("Wrong number of command line arguments.\n\
-                Usage: {} <CONFIGURATION_YAML> [OUTPUT_FILE]\n\
+                Usage: {} <CONFIGURATION_YAML> <OUTPUT_FILE>\n\
                 {}", program, textwrap::fill(description, 80));
             ::std::process::exit(1);
         },
@@ -135,7 +138,7 @@ impl LanguageCfg {
             }
         }
         active
-    } 
+    }
 }
 
 #[derive(Deserialize)]
@@ -208,28 +211,37 @@ fn main() {
         Ok(f) => f
     };
 
+    macro_rules! canonicalize(
+        ($input_path:expr) => (
+            $input_path.and_then(|p| match p.starts_with("~") {
+                true => p.to_str().map(|p| ::shellexpand::tilde_with_context(p,
+                        ::std::env::home_dir)).map(|p| PathBuf::from(p.into_owned())),
+                false => Some(p),
+            })
+        )
+    );
+
     for (lang, lconf) in config {
         info!("processing {}, active modules: {}", lang.to_name(),
             lconf.get_active_modules());
-        if let Some(wp_path) = lconf.wikipedia {
+        if let Some(wp_path) = canonicalize!(lconf.wikipedia) {
             info!("extracting Wikipedia articles from {}",
                   wp_path.to_string_lossy());
-            let wp_path = PathBuf::from(wp_path);
             extract_text(wikipedia::ArticleParser::new(
                     trylog!(File::open(wp_path), "Could not open input file", 1)),
                     Some(Box::new(wikipedia::Wikipedia)),
                     &lconf.stopwords,
                     &mut result_file);
         }
-        if let Some(gb_path) = lconf.gutenberg {
+        if let Some(gb_path) = canonicalize!(lconf.gutenberg) {
             info!("Extracting Gutenberg books from {}",
-                  gb_path.to_string_lossy());
+                  gb_path.display());
             extract_text(common::read_files(gb_path.into(), "txt".into()),
                 Some(Box::new(gutenberg::Gutenberg)),
                 &lconf.stopwords,
                 &mut result_file);
         }
-        if let Some(europeana_path) = lconf.europeana {
+        if let Some(europeana_path) = canonicalize!(lconf.europeana) {
             info!("Extracting news paper articles from {}",
                   europeana_path.to_string_lossy());
             let input_path = PathBuf::from(&europeana_path);
@@ -237,7 +249,7 @@ fn main() {
                 &lconf.stopwords,
                 &mut result_file);
         }
-        if let Some(cc_path) = lconf.codecivil {
+        if let Some(cc_path) = canonicalize!(lconf.codecivil) {
             info!("Extracting the code civil from {}",
                   cc_path.to_string_lossy());
             extract_text(common::read_files(cc_path.into(), "md".into()),
@@ -245,7 +257,7 @@ fn main() {
                 &lconf.stopwords,
                 &mut result_file);
         }
-        if let Some(dgt_path) = lconf.dgt {
+        if let Some(dgt_path) = canonicalize!(lconf.dgt) {
             info!("extracting EU-DGT Translation Memories from {}",
                   dgt_path.to_string_lossy());
             let dgt_path = PathBuf::from(dgt_path);
