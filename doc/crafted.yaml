@@ -1,0 +1,42 @@
+# This file can be copied to target/debug or target/release and can be used as a
+# base to configure crafted. This file is a JSON file. Everything below craft:
+# will be read by crated, everything below log4rs is passed to the log4rs
+# framework. For the latter, I advice to look at the respective documentation.
+craft:
+  deu:
+    gutenberg: data/gutenberg/
+    stopwords: >
+      aber, alle, allem, allen, aller, alles, als, also, am, an, andere,
+      anderem, anderen, anderer, anderes, anders, ansonsten, auch, auf, aus,
+      bei, bis, da, daher, damit, dann, das, dasselbe, dazu, dem, demselben,
+      den, denn, denselben, der, derer, derselbe, derselben, des, desselben,
+      dessen, dich, die, dies, diese, dieselbe, dieselben, diesem, diesen,
+      dieser, dieses, doch, dort, durch, ein, eine, einem, einen, einer, eines,
+      einig, einmal, es, etwas, für, gegen, genau, genauso, gleichwohl, hier,
+      hin, hinter, im, in, indem, ins, jede, jedem, jeden, jeder, jedes, jedoch,
+      jene, jenem, jenen, jener, jenes, jetzt, kein, keine, keinem, keinen,
+      keiner, keines, man, manche, manchem, manchen, mancher, manches, mit,
+      nach, nicht, nichts, noch, nun, nur, ob, obgleich, oder, ohne, sehr,
+      selbst, sich, so, solche, solchem, solchen, solcher, solches, sondern,
+      sonst, über, um, und, unter, viel, vom, von, vor, während, was, weg, weil,
+      weiter, welche, welchem, welchen, welcher, welches, wenn, weshalb,
+      weswegen, wie, wieder, wo, wodurch, zu, zum, zur, zwar, zwischen
+log4rs:
+  appenders:
+    file:
+      kind: file
+      path: "crafted.log"
+      encoder:
+          pattern: "{d(%Y/%m/%d %H:%M:%S%.3f)}: {m}{n}"
+    console:
+      kind: console
+      encoder:
+        pattern: "{m}{n}"
+      filters:
+      - kind: threshold
+        level: info
+  root:
+    level: debug
+    appenders:
+    - file
+    - console
