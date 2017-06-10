@@ -22,7 +22,7 @@ json = "*" # used for the pandoc filter
 htmlstream = "*"
 log = "0.3.6"
 log4rs = { version = "0.7", features = ["threshold_filter"] }
-pandoc = "0.5.*" # strip formatting
+pandoc = "0.6.1" # strip formatting
 shellexpand = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
