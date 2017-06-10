@@ -1,8 +1,9 @@
 use bzip2::read::BzDecoder;
 use std::fs::File;
 use std::io::Read;
-use std::path::Path;
-use super::super::input_source::Result;
+use std::path::{Path, PathBuf};
+use super::super::input_source::{Entity, PositionType, Result};
+use xml::common::Position;
 use xml::reader::{EventReader, XmlEvent};
 
 
@@ -24,9 +25,11 @@ impl<'a> input_source::Unformatter for Wikipedia {
         return pandoc::InputFormat::MediaWiki;
     }
 
-    fn preprocess(&self, input: &str) -> Result<String> {
-        let preproc = MediawikiPreprocessor::new(input);
-        preproc.preprocess()
+    fn preprocess(&self, input: &Entity) -> Result<Entity> {
+        let preproc = MediawikiPreprocessor::new(&input.content);
+        Ok(Entity {
+            content: preproc.preprocess()?,
+            position: input.position.clone() })
     }
 }
 
@@ -34,20 +37,21 @@ impl<'a> input_source::Unformatter for Wikipedia {
 
 
 pub struct ArticleParser<B: Read> {
+    data_path: Option<PathBuf>,
     event_reader: EventReader<B>
 }
 
 impl<B: Read> ArticleParser<B> {
     pub fn new(input_reader: B) -> ArticleParser<B> {
         let er = EventReader::new(input_reader);
-        ArticleParser { event_reader: er }
+        ArticleParser { event_reader: er, data_path: None }
     }
 }
 
 impl<B: Read> Iterator for ArticleParser<B> {
-    type Item = Result<String>;
+    type Item = Result<Entity>;
 
-    fn next(&mut self) -> Option<Result<String>> {
+    fn next(&mut self) -> Option<Result<Entity>> {
         let mut is_text_element = false;
         let mut text = String::new();
         while let Ok(element) = self.event_reader.next() {
@@ -83,7 +87,9 @@ impl<B: Read> Iterator for ArticleParser<B> {
             };
         };
         if !text.is_empty() {
-            Some(Ok(text))
+            let pos = self.event_reader.position();
+            Some(Ok(Entity::with_exact_pos(text, self.data_path.clone()
+                .unwrap_or(PathBuf::new()), pos.row + 1, pos.column + 1)))
         } else {
             None
         }
@@ -149,8 +155,8 @@ impl<'a> MediawikiPreprocessor<'a> {
         // if tag_start_found still set, unclosed HTML tag
         if self.tag_start_found {
             Err(TransformationError::ErrorneousStructure(
-                    format!("text after opening <: {}",
-                    self.tmp_storage), None))
+                    format!("text after opening <: {}", self.tmp_storage),
+                    PositionType::None))
         } else {
             Ok(self.parsed_data)
         }

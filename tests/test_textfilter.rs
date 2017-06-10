@@ -1,9 +1,10 @@
 #[cfg(test)]
 extern crate craft;
 
-use std::collections::HashSet;
+
 
 use craft::*;
+use craft::input_source::*;
 use craft::textfilter::*;
 
 fn art2words(input: &str) -> String {
@@ -79,11 +80,11 @@ fn test_newline_markers_keep_newline() {
 // test the JSON AST filter
 
 // this function calls the JSON2text function and replaces all " \u{7}" sequuuences through \n;
-// this is partly what textfilter::text2words does, but here it's solely for easier testability
+// this is partly what textfilter::text2words does, but this version is for tests
 fn call_filter(js_str: String) -> String {
+    let js_str = Entity { content: js_str, position: PositionType::None };
     let result = textfilter::stringify_text(js_str).unwrap();
-    let result = result.replace(&format!(" {} ", textfilter::RETURN_ESCAPE_SEQUENCE), "\n");
-    result
+    result.content.replace(&format!(" {} ", textfilter::RETURN_ESCAPE_SEQUENCE), "\n")
 }
 
 ////////////////////////////////////////////////////////////////////////////////

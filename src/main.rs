@@ -35,7 +35,8 @@ use std::path::PathBuf;
 
 use craft::{common, textfilter};
 use craft::modules::*;
-use craft::input_source::{self, Unformatter};
+use craft::input_source::{self, Entity, PositionType, Unformatter};
+use craft::input_source::TransformationError::*;
 
 macro_rules! trylog(
     ($thing:expr, $msg:expr, $ret:expr) => (match $thing {
@@ -260,7 +261,6 @@ fn main() {
         if let Some(dgt_path) = canonicalize!(lconf.dgt) {
             info!("extracting EU-DGT Translation Memories from {}",
                   dgt_path.to_string_lossy());
-            let dgt_path = PathBuf::from(dgt_path);
             extract_text(trylog!(dgt::DgtFiles::new(&dgt_path, lang.clone()), 
                 "Unable to read from given directory", 2),
                 None, &lconf.stopwords,
@@ -274,7 +274,7 @@ fn main() {
 /// This function utilises punctuation removing rules to get only plain text out of a document with
 /// no formatting. If an unformatter is given, it will utilize Pandoc to extract the plain text
 /// portions, before removing punctuation and stop words.
-fn extract_text<Source: Iterator<Item=input_source::Result<String>>>(
+fn extract_text<Source: Iterator<Item=input_source::Result<Entity>>>(
         input_source: Source, unfmt: Option<Box<Unformatter>>,
         stopwords: &Option<String>,
         result_file: &mut File) {
@@ -299,7 +299,7 @@ fn extract_text<Source: Iterator<Item=input_source::Result<String>>>(
                 Err(e) => {
                     error!("Error while preprocessing entity {}: {}",
                                entities_read, e);
-                    return;
+                    continue;
                 }
             };
         }
@@ -308,9 +308,9 @@ fn extract_text<Source: Iterator<Item=input_source::Result<String>>>(
         // single-space separated words (exception are line breaks for context conservation, see
         // appropriate module documentation)
         let stripped_words = match stopwords {
-            &Some(ref words) => textfilter::text2words(entity, Some(words
+            &Some(ref words) => textfilter::text2words(entity.content, Some(words
                     .split(",").map(|x| x.trim().into()).collect::<HashSet<String>>())),
-            &None => textfilter::text2words(entity, None),
+            &None => textfilter::text2words(entity.content, None),
         };
         if let Err(msg) = result_file.write_all(stripped_words.as_bytes()) {
             error!("could not write to output file: {}", msg);
@@ -329,8 +329,8 @@ fn extract_text<Source: Iterator<Item=input_source::Result<String>>>(
 }
 
 /// Remove formatting using pandoc
-fn process_formatting<'a>(unfmt: &'a Unformatter, mut doc: String)
-        -> input_source::Result<String> {
+fn process_formatting<'a>(unfmt: &'a Unformatter, mut doc: Entity)
+        -> input_source::Result<Entity> {
     // remove formatting which pandoc cannot handle (corner cases of incomplete
     // Pandoc readers)
     if unfmt.is_preprocessing_required() {

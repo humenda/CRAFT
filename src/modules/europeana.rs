@@ -11,7 +11,7 @@ pub struct Europeana;
 
 /// Iterator, which parses the content out of a JSON file
 pub struct Articles {
-    paths: Box<Iterator<Item=Result<String>>>,
+    paths: Box<Iterator<Item=Result<Entity>>>,
 }
 
 impl Articles {
@@ -22,37 +22,32 @@ impl Articles {
 
 /// return a TransformationError; simple short-hand
 #[inline]
-fn mkerr(input: &str, path: Option<String>) -> Result<String> {
-    Err(TransformationError::ErrorneousStructure(input.to_string(), path))
+fn mkerr(input: &str, pos: PositionType) -> Option<Result<Entity>> {
+    Some(Err(TransformationError::ErrorneousStructure(input.to_string(), pos)))
 }
 
 impl Iterator for Articles {
-    type Item = Result<String>;
+    type Item = Result<Entity>;
 
     // policy:
     // propagate errors directly, but skip to next file if no content could be found
-    fn next(&mut self) -> Option<Result<String>> {
-        let edition_js = match get!(self.paths.next()) {
-            Ok(p) => p,
-            Err(e) => return Some(Err(e)),
-        };
-        let meta = match json::parse(&edition_js) {
-            Ok(x) => x,
-            Err(e) => return Some(Err(TransformationError::JsonError(e))),
-        };
+    fn next(&mut self) -> Option<Self::Item> {
+        let edition_js = trysome!(get!(self.paths.next()));
+        let meta = trysome!(json::parse(&edition_js.content).map_err(|e|
+            TransformationError::JsonError(e, edition_js.position.clone())));
         let mut output = String::new();
         match meta {
             JsonValue::Object(ref obj) => match obj.get("contentAsText") {
                 Option::Some(&JsonValue::Array(ref values)) => for text in values {
                     output.push_str(&text.to_string());
                 },
-                _ => return Some(mkerr("Expected a JSON array underneath \
-                       \"contextAsText\" key", None)),
+                _ => return mkerr("Expected a JSON array underneath \
+                       \"contextAsText\" key", edition_js.position),
             },
-            _ => return Some(mkerr("expected JSON document with an Object \
-                            at the top level".into(), None)),
+            _ => return mkerr("expected JSON document with an Object at \
+                the top level".into(), edition_js.position),
         };
-        Some(Ok(output))
+        Some(Ok(Entity { content: output, position: edition_js.position }))
     }
 }
 

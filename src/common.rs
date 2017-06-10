@@ -121,7 +121,8 @@ impl Iterator for Files {
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(fpath) = self.file_list.next() {
             let fpath = trysome!(fpath.map(|x|
-                    x.path()).map_err(|e| TransformationError::IoError(e, None)));
+                    x.path()).map_err(|e| TransformationError::IoError(e,
+                           PositionType::None)));
             if fpath.extension() == Some(&self.requested_file_ending) {
                 return Some(Ok(fpath))
             }
@@ -136,15 +137,15 @@ impl Iterator for Files {
 /// This function creates an iterator which recurses all files in a given
 /// directory with a given extension and returns its content.
 pub fn read_files(input: path::PathBuf, extension: OsString)
-            -> Box<Iterator<Item=Result<String>>> {
+            -> Box<Iterator<Item=Result<Entity>>> {
     Box::new(Files::new(input, extension).unwrap().map(|x| match x {
-        Ok(fpath) => match fs::File::open(fpath) {
+        Ok(fpath) => match fs::File::open(&fpath) {
             Ok(mut r) => { // read file to String
                 let mut res = String::new();
                 r.read_to_string(&mut res)?;
-                Ok(res)
+                Ok(Entity::with_path(res, fpath))
             },
-            Err(e) => Err(TransformationError::IoError(e, None)),
+            Err(e) => Err(TransformationError::IoError(e, PositionType::InDirectory(fpath))),
         },
         Err(e) => Err(e),
     }))

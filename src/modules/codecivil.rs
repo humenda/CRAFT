@@ -2,7 +2,7 @@
 /// Morin. It has to be in a separate directory containing files ending on .md.
 use pandoc;
 
-use input_source::{Result, Unformatter};
+use input_source::{Entity, Result, Unformatter};
 
 
 /// Code Civil input parser
@@ -22,8 +22,8 @@ impl Unformatter for CodeCivil {
         pandoc::InputFormat::Markdown
     }
 
-    fn preprocess(&self, input: &str) -> Result<String> {
-        Ok(input.to_string())
+    fn preprocess(&self, _: &Entity) -> Result<Entity> {
+        unreachable!();
     }
 }
 

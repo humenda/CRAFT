@@ -18,12 +18,12 @@
 use isolang::Language;
 use std::fs;
 use std::io::{Read};
-use std::path::{Path};
+use std::path::{Path, PathBuf};
 use xml::reader::{EventReader, XmlEvent};
 use zip::read::{ZipArchive};
 
 use common;
-use input_source::{Result, TransformationError};
+use input_source::{Entity, PositionType, Result, TransformationError};
 use textfilter;
 
 // maximum buffer size of a String buffer parsed from XML
@@ -40,6 +40,8 @@ pub struct DgtFiles {
     zip_files: common::Files,
     /// current zip archive
     zip_archive: Option<ZipArchive<fs::File>>,
+    /// name of current file
+    zip_archive_path: Option<PathBuf>,
     /// entry index within current zip archive
     zip_entry: usize,
     /// length of zip file (so that zip_archive.unwrap().len() is not done each time)
@@ -54,13 +56,13 @@ impl DgtFiles {
     pub fn new(input: &Path, language: Language) -> Result<DgtFiles> {
         // get language and convert into 639-1
         let lang = language.to_639_1().ok_or(
-                TransformationError::InvalidInputArguments(format!(
+                TransformationError::InvalidLanguageError(language.to_639_3().into(),
                         "Requested language {} doesn't have a ISO 639-1 two-\
-                        letter language code", language.to_639_3())))?;
+                        letter language code".into(), PositionType::InDirectory(PathBuf::from(input))))?;
 
         Ok(DgtFiles {
             zip_files: common::Files::new(input, "zip".into())?,
-           zip_archive: None, zip_entry: 0, zip_entry_count: 0,
+           zip_archive: None, zip_archive_path: None, zip_entry: 0, zip_entry_count: 0,
            requested_language: lang.to_string().to_uppercase(),
            iteration_started: false,
         })
@@ -68,8 +70,9 @@ impl DgtFiles {
 
     // this method opens the next zip archive and saves it into self.zip_archive
     fn get_next_zip_archive(&mut self) -> Option<Result<()>> {
-        let fpath = get!(self.zip_files.next());
-        let file = trysome!(fs::File::open(trysome!(fpath)));
+        let fpath = trysome!(get!(self.zip_files.next()));
+        let file = trysome!(fs::File::open(fpath.clone()));
+        self.zip_archive_path = Some(fpath);
         let zip = trysome!(ZipArchive::new(file));
         self.zip_entry = 0;
         self.zip_entry_count = zip.len(); // number of files in zip
@@ -97,17 +100,23 @@ impl DgtFiles {
         // reinterpreting memory is required (platform portability?)
         if (raw_data.len() % 2) == 1 {
             return Err(TransformationError::EncodingError("DGT input data \
-                    couldn't be decoded as UtF-16, uneven byte count.".into()));
+                    couldn't be decoded as UtF-16, uneven byte count.".into(),
+                    PositionType::from_path(&self.zip_archive_path)));
         }
         let raw_data = unsafe {
                 ::std::slice::from_raw_parts_mut(raw_data.as_mut_ptr() as *mut u16,
                      raw_data.len() / 2) };
-        match raw_data[0] == 0xfeff {
-            true => String::from_utf16(&raw_data[1..]).map_err(|_|
-                TransformationError::EncodingError("Invalid UTF16-encoded file".into())),
-            false => String::from_utf16(&raw_data).map_err(|_|
-                TransformationError::EncodingError("Invalid UTF16-encoded file".into())),
-        }
+        let converted = match raw_data[0] == 0xfeff {
+            true => String::from_utf16(&raw_data[1..]),
+            false => String::from_utf16(&raw_data),
+        };
+        match converted {
+            Ok(x) => Ok(x),
+            Err(_) => Err(TransformationError::EncodingError("Invalid UTF16-\
+                    encoded file".into(), PositionType::from_path(
+                        &self.zip_archive_path.clone()))),
+        } // map_err closure would move self.zip_archive_path and this doesn't
+           // work because of mutable borrow
     }
 
     // parse the XML file and write the output to the second input parameter
@@ -151,7 +160,7 @@ impl DgtFiles {
         Ok(())
     }
 
-    fn get_next_chunk(&mut self) -> Option<Result<String>> {
+    fn get_next_chunk(&mut self) -> Option<Result<Entity>> {
         // loop until zip archive or zip entry with request data is found
         let mut extracted_text = String::new();
         loop {
@@ -180,17 +189,20 @@ impl DgtFiles {
                 if !extracted_text.ends_with("\n") {
                     extracted_text.push('\n'); // maintain word2vec "context" by adding newline
                 }
-                return Some(Ok(extracted_text))
+                // Unwrap is safe here, because if there's data, there's a path, too.
+                return Some(Ok(Entity::with_path(extracted_text,
+                        self.zip_archive_path.as_ref().unwrap().clone())))
             } // otherwise: loooooop
         }
     }
 }
 
 impl Iterator for DgtFiles {
-    type Item = Result<String>;
+    type Item = Result<Entity>;
 
     // get the plain text from the next parsed .tmx file, contained in one of    the zip archives
     fn next(&mut self) -> Option<Self::Item> {
+        // Unwrap is safe here, because no data would exist, if a path hadn't been saved.
         self.get_next_chunk()
     }
 }

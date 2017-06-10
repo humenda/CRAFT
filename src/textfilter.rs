@@ -10,7 +10,7 @@ use json::{self, object, JsonValue};
 use pandoc;
 use std::collections::HashSet;
 
-use input_source::{Result, TransformationError};
+use input_source::{Entity, Result, TransformationError};
 
 /// An internal escape sequence for newlines, see documentation on functions of this module.
 pub static RETURN_ESCAPE_SEQUENCE: char = '\x07';
@@ -21,18 +21,18 @@ pub static RETURN_ESCAPE_SEQUENCE: char = '\x07';
 /// This simple struct sets up a pandoc converter and adds the given format as an otpion. Its only
 /// method `call_pandoc` transparently pipes the given String into pandoc and reads its output back
 /// into a json String.
-pub fn call_pandoc(input_format: pandoc::InputFormat, input: String) -> Result<String> {
+pub fn call_pandoc(input_format: pandoc::InputFormat, input: Entity) -> Result<Entity> {
     let mut p = pandoc::new();
-    p.set_output_format(pandoc::OutputFormat::Json);
-    //p.set_input_format(input_format.clone());
-    p.set_input_format(input_format);
+    p.set_output_format(pandoc::OutputFormat::Json, vec![]);
+    p.set_input_format(input_format, vec![]);
     p.set_output(pandoc::OutputKind::Pipe);
-    p.set_input(pandoc::InputKind::Pipe(input.clone()));
+    p.set_input(pandoc::InputKind::Pipe(input.content));
     match p.execute() {
-        Ok(pandoc::PandocOutput::ToBuffer(data)) => Ok(data),
+        Ok(pandoc::PandocOutput::ToBuffer(data)) =>
+            Ok(Entity { content: data, position: input.position.clone() }),
         Ok(_) => panic!(format!("Expected converted data, got file name instead\nThis is a bug and needs to be fixed before continuing.")),
-        Err(x) => Err(TransformationError::ErrorneousStructure(format!("{:?}\nArticle:\n{}\n",
-                                                                           x, input), None))
+        Err(x) => Err(TransformationError::ErrorneousStructure(format!("{}\n",
+               x), input.position.clone()))
     }
 }
 
@@ -191,9 +191,10 @@ fn recurse_json_tree(output: &mut String, jsval: &mut JsonValue) {
 /// is inserted (surrounded by a space). This way, further post-processing functions can
 /// distinguish between semantically important line breaks and those which are not relevant. The
 /// [module documentation](index.html) gives more detail about the "importance" of line breaks.
-pub fn stringify_text(pandoc_dump: String) -> Result<String> {
-    let approx_result_buffer = pandoc_dump.len() / 7; // pre-aloc some space for resulting string
-    let mut ast = json::parse(&pandoc_dump)?;
+pub fn stringify_text(mut pandoc_dump: Entity) -> Result<Entity> {
+    let approx_result_buffer = pandoc_dump.content.len() / 7; // pre-aloc some space for resulting string
+    let mut ast = json::parse(&pandoc_dump.content).map_err(|e|
+            TransformationError::JsonError(e, pandoc_dump.position.clone()))?;
     let mut output = String::with_capacity(approx_result_buffer);
     match ast {
         JsonValue::Object(ref mut value) if value.get("blocks").is_some() => {
@@ -201,9 +202,11 @@ pub fn stringify_text(pandoc_dump: String) -> Result<String> {
         },
         _ => return Err(TransformationError::ErrorneousStructure(
             "expected JSON document with an Array as top level object and \
-            two entries: unmeta and the contents of the parsed document.".into(), None)),
+            two entries: unmeta and the contents of the parsed document.".into(),
+            pandoc_dump.position.clone())),
     };
-    Ok(output)
+    pandoc_dump.update_content(output);
+    Ok(pandoc_dump)
 }
 
 
@@ -325,7 +328,7 @@ pub fn text2words(input: String, stopwords: Option<HashSet<String>>) -> String {
             remove_enclosing_characters(&mut word);
             remove_punctuation(&mut word);
             if word_should_be_included(&word) && !stopwords.contains(&word) {
-                if words.chars().last() != Some('\n') {
+                if words.chars().last() != Some('\n') && !words.is_empty() {
                     words.push(' ');
                 }
 
