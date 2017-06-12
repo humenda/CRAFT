@@ -35,8 +35,7 @@ use std::path::PathBuf;
 
 use craft::{common, textfilter};
 use craft::modules::*;
-use craft::input_source::{self, Entity, PositionType, Unformatter};
-use craft::input_source::TransformationError::*;
+use craft::input_source::{self, Entity, Unformatter};
 
 macro_rules! trylog(
     ($thing:expr, $msg:expr, $ret:expr) => (match $thing {
@@ -283,6 +282,7 @@ fn extract_text<Source: Iterator<Item=input_source::Result<Entity>>>(
 
     // an entity can be either an article, a book or similar, it's the smallest unit of processing
     for entity in input_source {
+        entities_read += 1;
         let mut entity = match entity {
             Ok(t) => t,
             Err(e) => {
@@ -316,7 +316,6 @@ fn extract_text<Source: Iterator<Item=input_source::Result<Entity>>>(
             error!("could not write to output file: {}", msg);
             error_exit("Exiting", 23);
         }
-        entities_read += 1;
 
         if (entities_read % 500) == 0 {
             info!("{} articles parsed, {} errorneous articles skipped.",

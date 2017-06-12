@@ -2,6 +2,11 @@
 use super::super::input_source::{Entity, PositionType, Result, TransformationError, Unformatter};
 use pandoc;
 
+static END_MARKERS: [&str; 6] =  ["\nEnd of the Project Gutenberg",
+        "\nEnd of this Project Gutenberg",
+        "\nEnd of the project Gutenberg", "\nEnd of this project Gutenberg",
+        "\n***END OF ", "\n*** END OF "];
+
 pub struct Gutenberg;
 
 
@@ -37,11 +42,10 @@ impl Unformatter for Gutenberg {
 
         let end = find_end_of_book(&content[start as usize..]).map_err(|mut e| {
             e.inject_position(input.position.clone());e
-        })?;
+        }).map(|end| start + end)?;
 
-        // some books contain arbitrari hypens, which often fill the gaps between two words:
-
-        Ok(Entity { content: content[start..(start + end)].replace("--", " "),
+        // some books contain arbitrari hyphens, which often fill the gaps between two words:
+        Ok(Entity { content: content[start..end].replace("--", " "),
             position: input.position.clone() })
     }
 }
@@ -73,24 +77,10 @@ fn skip_first_paragraphs(input: &str) -> Option<usize> {
 
 // find end of book, indicated by different markers
 fn find_end_of_book(content: &str) -> Result<usize> {
-    // this end-of-book is mandatory
-    let mut end = content.find("*** END").ok_or_else(|| TransformationError::ErrorneousStructure(
-            "no end delimiter found". into(), PositionType::None))?;
-
-    // some books have a stanza with the strings below. If one of these encountered, take this
-    let new_end = if let Some(pos) = content.find("\nEnd of the Project Gutenberg") {
-        Some(pos)
-    } else if let Some(pos) = content.find("\nEnd of the project Gutenberg") {
-        Some(pos)
-    } else {
-        None
-    };
-    if let Some(new_end) = new_end {
-        if new_end < end {
-            end = new_end;
-        }
-    }
-
-    Ok(end)
+    END_MARKERS.iter().map(|marker| content.find(marker))
+        .filter(|pos| pos.is_some())
+        .map(|x| x.unwrap()).min()
+        .ok_or_else(|| TransformationError::ErrorneousStructure(
+                "no end delimiter found". into(), PositionType::None))
 }
 
