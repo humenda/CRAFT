@@ -303,6 +303,7 @@ fn extract_text<Source: Iterator<Item=input_source::Result<Entity>>>(
                 Err(e) => {
                     error!("Error while preprocessing entity {}: {}",
                                entities_read, e);
+                    errorneous_articles += 1;
                     continue;
                 }
             };
