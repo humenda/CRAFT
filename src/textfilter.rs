@@ -75,7 +75,7 @@ fn handle_pandoc_entities(output: &mut String, entity: &mut object::Object) {
         },
 
         // these should have a newline after these elements
-        "Para" | "Plain" | "BlockQuote" | "BulletList" | "DefinitionList" =>
+        "Para" | "Plain" | "BlockQuote" | "BulletList" | "DefinitionList" | "Quoted" =>
             if let Some(thing) = entity.get_mut("c") {
                 recurse_json_tree(output, thing); // recurse list of children
                 add_newline(output);
@@ -107,7 +107,8 @@ fn handle_pandoc_entities(output: &mut String, entity: &mut object::Object) {
 
         // types to ignore
         "CodeBlock" | "RawBlock" | "HorizontalRule" | "Table" | "Superscript" |
-                "Subscript" | "Cite" | "Code" | "Math" | "RawInline" | "Null" => (),
+                "Subscript" | "Cite" | "Code" | "Math" | "RawInline" | "Null" |
+                "DoubleQuote" => (),
         _ => panic!("Unknown type pandoc AST identifier found: {:?}", entity),
     }
 }

@@ -227,8 +227,12 @@ fn main() {
         if let Some(wp_path) = canonicalize!(lconf.wikipedia) {
             info!("extracting Wikipedia articles from {}",
                   wp_path.to_string_lossy());
-            extract_text(wikipedia::ArticleParser::new(
-                    trylog!(File::open(wp_path), "Could not open input file", 1)),
+            //extract_text(wikipedia::ArticleParser::new(
+            //        trylog!(wikipedia::parser_from_file(&wp_path), "Could not open input file", 1)),
+            //        Some(Box::new(wikipedia::Wikipedia)),
+            //        &lconf.stopwords,
+            //        &mut result_file);
+            extract_text(trylog!(wikipedia::parser_from_file(&wp_path), "Could not open input file", 1),
                     Some(Box::new(wikipedia::Wikipedia)),
                     &lconf.stopwords,
                     &mut result_file);
