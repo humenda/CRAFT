@@ -1,5 +1,5 @@
 # This file can be copied to target/debug or target/release and can be used as a
-# base to configure crafted. This file is a JSON file. Everything below craft:
+# base to configure crafted. This file is a YAML file. Everything below craft:
 # will be read by crated, everything below log4rs is passed to the log4rs
 # framework. For the latter, I advice to look at the respective documentation.
 craft:
