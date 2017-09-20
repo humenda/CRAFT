@@ -108,8 +108,8 @@ fn handle_pandoc_entities(output: &mut String, entity: &mut object::Object) {
         // types to ignore
         "CodeBlock" | "RawBlock" | "HorizontalRule" | "Table" | "Superscript" |
                 "Subscript" | "Cite" | "Code" | "Math" | "RawInline" | "Null" |
-                "DoubleQuote" => (),
-        _ => panic!("Unknown type pandoc AST identifier found: {:?}", entity),
+                "DoubleQuote" | "LineBlock" => (),
+        _ => panic!("Unknown type in pandoc AST identifier found: {:?}", entity),
     }
 }
 
