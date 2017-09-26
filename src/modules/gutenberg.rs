@@ -1,4 +1,4 @@
-
+//! Gutenberg ebook extractor
 use super::super::input_source::{Entity, PositionType, Result, TransformationError, Unformatter};
 use pandoc;
 

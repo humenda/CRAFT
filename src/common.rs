@@ -1,4 +1,7 @@
-/// This module contains helper functions, which are often used in the backends.
+//! Common bits for modules and the CRAFT implementation.
+//!
+//! This module contains common functions, macros and iterators used by both modules and the CRAFT
+//! implementation.
 
 use htmlstream;
 use std::ffi::OsString;
@@ -8,7 +11,9 @@ use std::path;
 
 use super::input_source::*;
 
-/// as try!, but with options
+/// Option handling for iterators
+/// 
+/// This macro works exactly like `try!`, but on `Option`.
 macro_rules! get(
     ($e:expr) => (match $e {
         Some(e) => e,
@@ -16,7 +21,12 @@ macro_rules! get(
     })
 );
 
-/// try! which works which returns a Option<Result<T>>
+/// Try for iterators of type `Item=Result<_>`
+///
+/// For an iterator to be able to transport an error, a `Result` is encapsulated into the `Option`
+/// type. Handling errors in such an iterator can be tedious, because in the case of an error,
+/// `Some(Err(…))` has to be returned. This Macro will unwrap an `Ok(_)` and `return Some(Err…))`
+/// otherwise.
 macro_rules! trysome(
     ($e:expr) => (
         match $e {
@@ -26,10 +36,15 @@ macro_rules! trysome(
     )
 );
 
-/// try! which returns a Iterator<Result<_, TransformationError>> upon failure (useful fo r the
+/// A `try!`-alike macro returning an iterator upon failure.
+/// Input modules are required to provide an iterator providing text chunks (articles, books,
+/// etc.). Because of the internal implementation, the only way to propagate an error from an
+/// iterator is to return an error as the first element and `None` afterwards. This macro unwraps a
+/// result and if an error is found, a one-item iterator is returned with the error wrapped.
 /// GetIter trait; this requires importing std::iter
 macro_rules! tryiter(
     ($e:expr) => (
+        use std::iter;
         match $e {
             Ok(d) => d,
             Err(e) => return iter::once(Err(From::from(e))),
@@ -44,38 +59,6 @@ pub fn read_file(path: &path::Path) -> Result<String> {
     let mut content = String::new();
     f?.read_to_string(&mut content)?;
     Ok(content)
-}
-
-/// Consume a reader into a String
-#[inline]
-pub fn consume_reader(input: &mut Read) -> Result<String> {
-    let mut consumed = String::new();
-    input.read_to_string(& mut consumed)?;
-    Ok(consumed)
-}
-
-
-/// Recurse files from given directory to list all files below the given path.
-pub fn recurse_files(files_read: &mut Vec<String>, directory: &path::Path,
-                     required_extension: &OsString) {
-    let paths = fs::read_dir(directory).unwrap();
-    for path in paths {
-        if path.is_err() {
-            warn!("couldn't list contents of {:?}", path);
-            continue;
-        }
-        let path = path.unwrap().path();
-        if path.is_dir() {
-            recurse_files(files_read, &path, required_extension)
-        } else { // is a file
-            if path.extension().unwrap() == required_extension {
-                let absolute_path = ::std::fs::canonicalize(path).unwrap();
-                files_read.push(absolute_path.to_str().unwrap().into());
-            } else { // error while converting path to str
-                warn!("could not decode file name of {:?}", path);
-            }
-        }
-    }
 }
 
 /// Extract links from given HTML document

@@ -12,7 +12,7 @@ use std::collections::HashSet;
 
 use input_source::{Entity, Result, TransformationError};
 
-/// An internal escape sequence for newlines, see documentation on functions of this module.
+/// An internal escape sequence for newlines, see [`stringify_text`](fn.stringify_text.html)
 pub static RETURN_ESCAPE_SEQUENCE: char = '\x07';
 
 

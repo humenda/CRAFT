@@ -1,3 +1,4 @@
+//! Wikimedia data preprocessor and iterator.
 use bzip2::read::BzDecoder;
 use std::fs::File;
 use std::io::Read;

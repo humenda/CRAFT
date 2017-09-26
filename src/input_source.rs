@@ -1,9 +1,15 @@
+//! An `InputSource` is anything providing textual data for a certain language. An implementation
+//! should abstract from the concrete data source and provide an iterator emitting chunks of text,
+//! called an **entity**.  An entity can be an article, a book or a handful of paragraphs in a
+//! continuous stream. The size of the text chunks should be picked wisely, a small chunk size
+//! results in a higher coordination overhead.
 use json;
 use std::error::Error;
 use std::io;
 use std::path::PathBuf;
 use pandoc;
 
+/// InputSource result type.
 pub type Result<T> = ::std::result::Result<T, TransformationError>;
 
 /// Position within a data set.
@@ -124,14 +130,14 @@ impl Error for TransformationError {
     }
 }
 
-/// allow seamless coercion from io::Error 
+// allow seamless coercion from io::Error 
 impl From<::std::io::Error> for TransformationError {
     fn from(err: ::std::io::Error) -> TransformationError {
         TransformationError::IoError(err, PositionType::None)
     }
 }
 
-/// allow hassle-free coercion from xml::reader::Error
+// allow hassle-free coercion from xml::reader::Error
 impl From<::xml::reader::Error> for TransformationError {
     fn from(err: ::xml::reader::Error) -> TransformationError {
         TransformationError::XmlParserERrror(err, PositionType::None)
@@ -150,7 +156,6 @@ impl From<::zip::result::ZipError> for TransformationError {
             ZipError::UnsupportedArchive(ref msg) => TransformationError::ErrorneousStructure(
                     format!("Unsupported zip archive format: {}", msg),
                         PositionType::None),
-
         }
     }
 }
